@@ -22,14 +22,14 @@ public sealed class NavigationCatalogTests
     }
 
     [Fact]
-    public void Only_dashboard_is_marked_implemented_in_phase_one()
+    public void Dashboard_and_vehicles_are_marked_implemented_after_phase_three()
     {
         var implemented = NavigationCatalog.Sections
             .Where(section => section.IsImplemented)
             .Select(section => section.Area)
             .ToArray();
 
-        Assert.Equal([ApplicationArea.Dashboard], implemented);
+        Assert.Equal([ApplicationArea.Dashboard, ApplicationArea.Vehicles], implemented);
     }
 
     [Fact]

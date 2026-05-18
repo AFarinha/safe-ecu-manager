@@ -2,8 +2,10 @@ using System.Windows;
 using System.Windows.Threading;
 using SafeEcu.Application.Common;
 using SafeEcu.Application.Localization;
+using SafeEcu.Application.Vehicles;
 using SafeEcu.Infrastructure.Logging;
 using SafeEcu.Infrastructure.Persistence;
+using SafeEcu.Infrastructure.Persistence.Repositories;
 
 namespace SafeEcu.App;
 
@@ -34,7 +36,11 @@ public partial class App : System.Windows.Application
                 MessageBoxImage.Warning);
         }
 
-        var mainWindow = new MainWindow(_logger, configuration, localizer);
+        var vehicleRepository = new VehicleRepository(dbContextFactory);
+        var vehicleService = new VehicleService(vehicleRepository, _logger);
+        var vehicleProfileCatalog = new VehicleProfileCatalog();
+
+        var mainWindow = new MainWindow(_logger, configuration, localizer, vehicleService, vehicleProfileCatalog);
         mainWindow.Show();
     }
 

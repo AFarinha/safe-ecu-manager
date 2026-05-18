@@ -20,6 +20,13 @@ public sealed class VehicleRepository : IVehicleRepository
         await dbContext.SaveChangesAsync(cancellationToken);
     }
 
+    public async Task UpdateAsync(Vehicle vehicle, CancellationToken cancellationToken = default)
+    {
+        await using var dbContext = _dbContextFactory.Create();
+        dbContext.Vehicles.Update(vehicle);
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
     public async Task<Vehicle?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
         await using var dbContext = _dbContextFactory.Create();

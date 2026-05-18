@@ -19,14 +19,10 @@ public sealed class VehicleService
         Vehicle vehicle,
         CancellationToken cancellationToken = default)
     {
-        if (string.IsNullOrWhiteSpace(vehicle.Make))
+        var validation = Validate(vehicle);
+        if (!validation.IsSuccess)
         {
-            return OperationResult<Vehicle>.Failure("Vehicle make is required.");
-        }
-
-        if (string.IsNullOrWhiteSpace(vehicle.Model))
-        {
-            return OperationResult<Vehicle>.Failure("Vehicle model is required.");
+            return OperationResult<Vehicle>.Failure(validation.ErrorMessage!);
         }
 
         vehicle.CreatedAt = DateTimeOffset.UtcNow;
@@ -38,6 +34,67 @@ public sealed class VehicleService
         return OperationResult<Vehicle>.Success(vehicle);
     }
 
+    public async Task<OperationResult<Vehicle>> UpdateAsync(
+        Vehicle vehicle,
+        CancellationToken cancellationToken = default)
+    {
+        if (vehicle.Id == Guid.Empty)
+        {
+            return OperationResult<Vehicle>.Failure("Vehicle id is required.");
+        }
+
+        var existing = await _vehicleRepository.GetByIdAsync(vehicle.Id, cancellationToken);
+        if (existing is null)
+        {
+            return OperationResult<Vehicle>.Failure("Vehicle was not found.");
+        }
+
+        var validation = Validate(vehicle);
+        if (!validation.IsSuccess)
+        {
+            return OperationResult<Vehicle>.Failure(validation.ErrorMessage!);
+        }
+
+        existing.Vin = vehicle.Vin;
+        existing.LicensePlate = vehicle.LicensePlate;
+        existing.Make = vehicle.Make.Trim();
+        existing.Model = vehicle.Model.Trim();
+        existing.Year = vehicle.Year;
+        existing.Engine = vehicle.Engine.Trim();
+        existing.EngineCode = vehicle.EngineCode.Trim();
+        existing.FuelType = vehicle.FuelType;
+        existing.Notes = vehicle.Notes;
+        existing.UpdatedAt = DateTimeOffset.UtcNow;
+
+        await _vehicleRepository.UpdateAsync(existing, cancellationToken);
+        _logger.Information($"Vehicle updated: {existing.Id}.");
+
+        return OperationResult<Vehicle>.Success(existing);
+    }
+
+    public Task<Vehicle?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default) =>
+        _vehicleRepository.GetByIdAsync(id, cancellationToken);
+
     public Task<IReadOnlyList<Vehicle>> ListAsync(CancellationToken cancellationToken = default) =>
         _vehicleRepository.ListAsync(cancellationToken);
+
+    private static OperationResult Validate(Vehicle vehicle)
+    {
+        if (string.IsNullOrWhiteSpace(vehicle.Make))
+        {
+            return OperationResult.Failure("Vehicle make is required.");
+        }
+
+        if (string.IsNullOrWhiteSpace(vehicle.Model))
+        {
+            return OperationResult.Failure("Vehicle model is required.");
+        }
+
+        if (vehicle.Year is < 1886 or > 2100)
+        {
+            return OperationResult.Failure("Vehicle year is outside the supported range.");
+        }
+
+        return OperationResult.Success();
+    }
 }

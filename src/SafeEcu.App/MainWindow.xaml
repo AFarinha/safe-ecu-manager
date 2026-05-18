@@ -85,7 +85,8 @@
                            TextWrapping="Wrap" />
             </StackPanel>
 
-            <Border Grid.Row="1"
+            <Border x:Name="GenericPanel"
+                    Grid.Row="1"
                     Background="{StaticResource PanelBackgroundBrush}"
                     BorderBrush="#D6DEE6"
                     BorderThickness="1"
@@ -104,6 +105,140 @@
                                TextWrapping="Wrap" />
                 </StackPanel>
             </Border>
+
+            <Grid x:Name="VehiclesPanel" Grid.Row="1" Visibility="Collapsed">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="2*" MinWidth="320" />
+                    <ColumnDefinition Width="24" />
+                    <ColumnDefinition Width="3*" MinWidth="420" />
+                </Grid.ColumnDefinitions>
+
+                <Border Grid.Column="0"
+                        Background="{StaticResource PanelBackgroundBrush}"
+                        BorderBrush="#D6DEE6"
+                        BorderThickness="1"
+                        CornerRadius="6"
+                        Padding="16">
+                    <DockPanel>
+                        <StackPanel DockPanel.Dock="Top" Margin="0,0,0,12">
+                            <TextBlock x:Name="VehiclesListTitle"
+                                       Foreground="{StaticResource PrimaryTextBrush}"
+                                       FontSize="17"
+                                       FontWeight="SemiBold" />
+                            <TextBlock x:Name="VehiclesEmptyText"
+                                       Foreground="{StaticResource MutedTextBrush}"
+                                       FontSize="13"
+                                       Margin="0,6,0,0"
+                                       Visibility="Collapsed" />
+                        </StackPanel>
+
+                        <DataGrid x:Name="VehiclesGrid"
+                                  AutoGenerateColumns="False"
+                                  IsReadOnly="True"
+                                  SelectionMode="Single"
+                                  SelectionChanged="OnVehicleSelectionChanged"
+                                  CanUserAddRows="False"
+                                  HeadersVisibility="Column"
+                                  GridLinesVisibility="Horizontal"
+                                  BorderThickness="0">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn x:Name="VehicleMakeColumn" Binding="{Binding Make}" Width="*" />
+                                <DataGridTextColumn x:Name="VehicleModelColumn" Binding="{Binding Model}" Width="*" />
+                                <DataGridTextColumn x:Name="VehicleEngineCodeColumn" Binding="{Binding EngineCode}" Width="*" />
+                            </DataGrid.Columns>
+                        </DataGrid>
+                    </DockPanel>
+                </Border>
+
+                <Border Grid.Column="2"
+                        Background="{StaticResource PanelBackgroundBrush}"
+                        BorderBrush="#D6DEE6"
+                        BorderThickness="1"
+                        CornerRadius="6"
+                        Padding="16">
+                    <ScrollViewer VerticalScrollBarVisibility="Auto">
+                        <StackPanel>
+                            <DockPanel Margin="0,0,0,14">
+                                <TextBlock x:Name="VehicleFormTitle"
+                                           DockPanel.Dock="Left"
+                                           Foreground="{StaticResource PrimaryTextBrush}"
+                                           FontSize="17"
+                                           FontWeight="SemiBold" />
+                                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" HorizontalAlignment="Right">
+                                    <Button x:Name="NewVehicleButton"
+                                            Click="OnNewVehicleClick"
+                                            Padding="14,8"
+                                            Margin="0,0,8,0" />
+                                    <Button x:Name="RefreshVehiclesButton"
+                                            Click="OnRefreshVehiclesClick"
+                                            Padding="14,8"
+                                            Margin="0,0,8,0" />
+                                    <Button x:Name="SaveVehicleButton"
+                                            Click="OnSaveVehicleClick"
+                                            Padding="14,8"
+                                            Background="{StaticResource AccentBrush}"
+                                            Foreground="White" />
+                                </StackPanel>
+                            </DockPanel>
+
+                            <TextBlock x:Name="VehicleMessage"
+                                       Foreground="#7A3E00"
+                                       FontSize="13"
+                                       Margin="0,0,0,12"
+                                       TextWrapping="Wrap" />
+
+                            <TextBlock x:Name="VehicleProfileLabel" Foreground="{StaticResource MutedTextBrush}" />
+                            <ComboBox x:Name="VehicleProfileSelector"
+                                      DisplayMemberPath="DisplayName"
+                                      SelectionChanged="OnVehicleProfileChanged"
+                                      Margin="0,4,0,12" />
+
+                            <UniformGrid Columns="2">
+                                <StackPanel Margin="0,0,10,12">
+                                    <TextBlock x:Name="VehicleMakeLabel" Foreground="{StaticResource MutedTextBrush}" />
+                                    <TextBox x:Name="VehicleMakeTextBox" Margin="0,4,0,0" />
+                                </StackPanel>
+                                <StackPanel Margin="10,0,0,12">
+                                    <TextBlock x:Name="VehicleModelLabel" Foreground="{StaticResource MutedTextBrush}" />
+                                    <TextBox x:Name="VehicleModelTextBox" Margin="0,4,0,0" />
+                                </StackPanel>
+                                <StackPanel Margin="0,0,10,12">
+                                    <TextBlock x:Name="VehicleYearLabel" Foreground="{StaticResource MutedTextBrush}" />
+                                    <TextBox x:Name="VehicleYearTextBox" Margin="0,4,0,0" />
+                                </StackPanel>
+                                <StackPanel Margin="10,0,0,12">
+                                    <TextBlock x:Name="VehicleFuelLabel" Foreground="{StaticResource MutedTextBrush}" />
+                                    <ComboBox x:Name="VehicleFuelSelector" Margin="0,4,0,0" />
+                                </StackPanel>
+                                <StackPanel Margin="0,0,10,12">
+                                    <TextBlock x:Name="VehicleEngineLabel" Foreground="{StaticResource MutedTextBrush}" />
+                                    <TextBox x:Name="VehicleEngineTextBox" Margin="0,4,0,0" />
+                                </StackPanel>
+                                <StackPanel Margin="10,0,0,12">
+                                    <TextBlock x:Name="VehicleEngineCodeLabel" Foreground="{StaticResource MutedTextBrush}" />
+                                    <TextBox x:Name="VehicleEngineCodeTextBox" Margin="0,4,0,0" />
+                                </StackPanel>
+                                <StackPanel Margin="0,0,10,12">
+                                    <TextBlock x:Name="VehicleVinLabel" Foreground="{StaticResource MutedTextBrush}" />
+                                    <TextBox x:Name="VehicleVinTextBox" Margin="0,4,0,0" />
+                                </StackPanel>
+                                <StackPanel Margin="10,0,0,12">
+                                    <TextBlock x:Name="VehicleLicensePlateLabel" Foreground="{StaticResource MutedTextBrush}" />
+                                    <TextBox x:Name="VehicleLicensePlateTextBox" Margin="0,4,0,0" />
+                                </StackPanel>
+                            </UniformGrid>
+
+                            <TextBlock x:Name="VehicleNotesLabel" Foreground="{StaticResource MutedTextBrush}" />
+                            <TextBox x:Name="VehicleNotesTextBox"
+                                     MinHeight="92"
+                                     TextWrapping="Wrap"
+                                     AcceptsReturn="True"
+                                     VerticalScrollBarVisibility="Auto"
+                                     Margin="0,4,0,0" />
+                        </StackPanel>
+                    </ScrollViewer>
+                </Border>
+            </Grid>
 
             <TextBlock x:Name="SafeModeFooter"
                        Grid.Row="2"
