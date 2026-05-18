@@ -57,6 +57,23 @@
             </Grid.RowDefinitions>
 
             <StackPanel Grid.Row="0" Margin="0,0,0,22">
+                <DockPanel Margin="0,0,0,14">
+                    <StackPanel DockPanel.Dock="Right"
+                                Orientation="Horizontal"
+                                HorizontalAlignment="Right">
+                        <TextBlock x:Name="LanguageLabel"
+                                   Foreground="{StaticResource MutedTextBrush}"
+                                   FontSize="13"
+                                   VerticalAlignment="Center"
+                                   Margin="0,0,8,0" />
+                        <ComboBox x:Name="LanguageSelector"
+                                  Width="140"
+                                  DisplayMemberPath="DisplayName"
+                                  SelectedValuePath="Code"
+                                  SelectionChanged="OnLanguageChanged" />
+                    </StackPanel>
+                </DockPanel>
+
                 <TextBlock x:Name="SectionTitle"
                            Foreground="{StaticResource PrimaryTextBrush}"
                            FontSize="30"
@@ -88,8 +105,8 @@
                 </StackPanel>
             </Border>
 
-            <TextBlock Grid.Row="2"
-                       Text="Modo seguro: FileOnly / ManualWorkflow. Escrita ECU e controlo direto de hardware estao desativados."
+            <TextBlock x:Name="SafeModeFooter"
+                       Grid.Row="2"
                        Foreground="#7A3E00"
                        FontSize="13"
                        Margin="0,18,0,0"

@@ -1,7 +1,9 @@
 using System.Windows;
 using System.Windows.Threading;
 using SafeEcu.Application.Common;
+using SafeEcu.Application.Localization;
 using SafeEcu.Infrastructure.Logging;
+using SafeEcu.Infrastructure.Persistence;
 
 namespace SafeEcu.App;
 
@@ -9,24 +11,40 @@ public partial class App : System.Windows.Application
 {
     private IAppLogger? _logger;
 
-    private void OnStartup(object sender, StartupEventArgs e)
+    private async void OnStartup(object sender, StartupEventArgs e)
     {
         var configuration = new AppConfiguration();
+        var localizer = new InMemoryTextLocalizer(configuration.DefaultLanguage);
         _logger = new FileAppLogger(configuration.LogDirectory);
 
         AppDomain.CurrentDomain.UnhandledException += OnUnhandledException;
         _logger.Information("Application starting.");
 
-        var mainWindow = new MainWindow(_logger, configuration);
+        var connectionString = SqliteConnectionStringFactory.Create(configuration.DataDirectory);
+        var dbContextFactory = new SafeEcuDbContextFactory(connectionString);
+        var persistenceInitializer = new SqlitePersistenceInitializer(dbContextFactory, _logger);
+        var persistenceResult = await persistenceInitializer.InitializeAsync();
+
+        if (!persistenceResult.IsSuccess)
+        {
+            MessageBox.Show(
+                persistenceResult.ErrorMessage,
+                localizer.Text("App.DatabaseWarningTitle"),
+                MessageBoxButton.OK,
+                MessageBoxImage.Warning);
+        }
+
+        var mainWindow = new MainWindow(_logger, configuration, localizer);
         mainWindow.Show();
     }
 
     private void OnDispatcherUnhandledException(object sender, DispatcherUnhandledExceptionEventArgs e)
     {
         _logger?.Error("Unhandled UI error.", e.Exception);
+        var localizer = new InMemoryTextLocalizer();
         MessageBox.Show(
-            "Ocorreu um erro inesperado. A aplicacao registou detalhes no log local.",
-            "Erro",
+            localizer.Text("App.UnhandledError"),
+            localizer.Text("App.ErrorTitle"),
             MessageBoxButton.OK,
             MessageBoxImage.Error);
 

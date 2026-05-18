@@ -8,6 +8,8 @@ public sealed class AppConfiguration
 
     public string LogDirectory { get; init; } = "logs";
 
+    public string DefaultLanguage { get; init; } = "en";
+
     public bool DirectEcuWriteEnabled { get; init; }
 
     public bool DirectProgrammerControlEnabled { get; init; }

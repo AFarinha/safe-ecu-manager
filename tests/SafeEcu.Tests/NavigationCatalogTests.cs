@@ -31,4 +31,14 @@ public sealed class NavigationCatalogTests
 
         Assert.Equal([ApplicationArea.Dashboard], implemented);
     }
+
+    [Fact]
+    public void Sections_use_localization_keys_instead_of_display_text()
+    {
+        Assert.All(NavigationCatalog.Sections, section =>
+        {
+            Assert.StartsWith("Nav.", section.TitleKey);
+            Assert.StartsWith("Nav.", section.DescriptionKey);
+        });
+    }
 }
