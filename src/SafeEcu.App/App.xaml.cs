@@ -4,6 +4,7 @@ using SafeEcu.Application.Common;
 using SafeEcu.Application.Localization;
 using SafeEcu.Application.Programmers;
 using SafeEcu.Application.Vehicles;
+using SafeEcu.Infrastructure.Files;
 using SafeEcu.Infrastructure.Logging;
 using SafeEcu.Infrastructure.Persistence;
 using SafeEcu.Infrastructure.Persistence.Repositories;
@@ -39,11 +40,27 @@ public partial class App : System.Windows.Application
         }
 
         var vehicleRepository = new VehicleRepository(dbContextFactory);
+        var ecuInfoRepository = new EcuInfoRepository(dbContextFactory);
+        var ecuFileRepository = new EcuFileRepository(dbContextFactory);
         var vehicleService = new VehicleService(vehicleRepository, _logger);
+        var ecuFileService = new EcuFileService(ecuFileRepository, _logger);
+        var ecuFileImportService = new EcuFileImportService(
+            ecuInfoRepository,
+            ecuFileService,
+            new Sha256FileHashService(),
+            _logger);
         var vehicleProfileCatalog = new VehicleProfileCatalog();
         var programmerCapabilityService = new ProgrammerCapabilityService(ProgrammerAdapterCatalog.CreateDefaultAdapters());
 
-        var mainWindow = new MainWindow(_logger, configuration, localizer, vehicleService, vehicleProfileCatalog, programmerCapabilityService);
+        var mainWindow = new MainWindow(
+            _logger,
+            configuration,
+            localizer,
+            vehicleService,
+            vehicleProfileCatalog,
+            programmerCapabilityService,
+            ecuFileImportService,
+            ecuFileService);
         mainWindow.Show();
     }
 

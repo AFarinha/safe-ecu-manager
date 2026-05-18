@@ -1,5 +1,6 @@
 using System.Windows;
 using System.Windows.Controls;
+using Microsoft.Win32;
 using SafeEcu.Application.Common;
 using SafeEcu.Application.Localization;
 using SafeEcu.Application.Navigation;
@@ -18,6 +19,8 @@ public partial class MainWindow : Window
     private readonly VehicleService _vehicleService;
     private readonly VehicleProfileCatalog _vehicleProfileCatalog;
     private readonly ProgrammerCapabilityService _programmerCapabilityService;
+    private readonly EcuFileImportService _ecuFileImportService;
+    private readonly EcuFileService _ecuFileService;
     private ApplicationArea _currentArea = ApplicationArea.Dashboard;
     private Guid? _selectedVehicleId;
     private bool _isLoadingVehicle;
@@ -28,7 +31,9 @@ public partial class MainWindow : Window
         ITextLocalizer localizer,
         VehicleService vehicleService,
         VehicleProfileCatalog vehicleProfileCatalog,
-        ProgrammerCapabilityService programmerCapabilityService)
+        ProgrammerCapabilityService programmerCapabilityService,
+        EcuFileImportService ecuFileImportService,
+        EcuFileService ecuFileService)
     {
         _logger = logger;
         _configuration = configuration;
@@ -36,12 +41,18 @@ public partial class MainWindow : Window
         _vehicleService = vehicleService;
         _vehicleProfileCatalog = vehicleProfileCatalog;
         _programmerCapabilityService = programmerCapabilityService;
+        _ecuFileImportService = ecuFileImportService;
+        _ecuFileService = ecuFileService;
 
         InitializeComponent();
 
         VehicleFuelSelector.ItemsSource = Enum.GetValues<FuelType>();
         VehicleFuelSelector.SelectedItem = FuelType.Unknown;
         VehicleProfileSelector.ItemsSource = BuildProfileOptions();
+        EcuFileTypeSelector.ItemsSource = Enum.GetValues<EcuFileType>();
+        EcuFileTypeSelector.SelectedItem = EcuFileType.Unknown;
+        EcuFileReadMethodTextBox.Text = "ManualWorkflowOnly";
+        EcuFileProgrammerTextBox.Text = "Galletto 1260 / EOBD Programmer 1260";
 
         LanguageSelector.ItemsSource = _localizer.SupportedLanguages;
         LanguageSelector.SelectedValue = _localizer.CurrentLanguageCode;
@@ -70,14 +81,20 @@ public partial class MainWindow : Window
             : _localizer.Text("Status.FuturePhase");
         SectionBody.Text = BuildBody(section);
         var isVehicles = area == ApplicationArea.Vehicles;
+        var isEcuFiles = area == ApplicationArea.EcuFiles;
         var isProgrammers = area == ApplicationArea.Programmers;
-        GenericPanel.Visibility = isVehicles || isProgrammers ? Visibility.Collapsed : Visibility.Visible;
-        VehiclesPanel.Visibility = area == ApplicationArea.Vehicles ? Visibility.Visible : Visibility.Collapsed;
+        GenericPanel.Visibility = isVehicles || isEcuFiles || isProgrammers ? Visibility.Collapsed : Visibility.Visible;
+        VehiclesPanel.Visibility = isVehicles ? Visibility.Visible : Visibility.Collapsed;
+        EcuFilesPanel.Visibility = isEcuFiles ? Visibility.Visible : Visibility.Collapsed;
         ProgrammersPanel.Visibility = isProgrammers ? Visibility.Visible : Visibility.Collapsed;
 
         if (isVehicles)
         {
             _ = LoadVehiclesAsync();
+        }
+        else if (isEcuFiles)
+        {
+            _ = LoadEcuFileVehiclesAsync();
         }
         else if (isProgrammers)
         {
@@ -137,6 +154,23 @@ public partial class MainWindow : Window
         VehicleFormTitle.Text = _selectedVehicleId is null
             ? _localizer.Text("Vehicles.FormTitle.New")
             : _localizer.Text("Vehicles.FormTitle.Edit");
+        EcuFileVehicleLabel.Text = _localizer.Text("EcuFiles.Vehicle");
+        EcuFileTypeLabel.Text = _localizer.Text("EcuFiles.FileType");
+        EcuFileSourceLabel.Text = _localizer.Text("EcuFiles.SourceFile");
+        EcuFileProgrammerLabel.Text = _localizer.Text("EcuFiles.Programmer");
+        EcuFileReadMethodLabel.Text = _localizer.Text("EcuFiles.ReadMethod");
+        EcuFileOriginLabel.Text = _localizer.Text("EcuFiles.Origin");
+        EcuFileNotesLabel.Text = _localizer.Text("EcuFiles.Notes");
+        SelectEcuFileButton.Content = _localizer.Text("EcuFiles.SelectFile");
+        ImportEcuFileButton.Content = _localizer.Text("EcuFiles.Import");
+        RefreshEcuFilesButton.Content = _localizer.Text("EcuFiles.Refresh");
+        EcuFilesListTitle.Text = _localizer.Text("EcuFiles.ImportedFiles");
+        EcuFileNameColumn.Header = _localizer.Text("EcuFiles.FileName");
+        EcuFileTypeColumn.Header = _localizer.Text("EcuFiles.FileType");
+        EcuFileSizeColumn.Header = _localizer.Text("EcuFiles.Size");
+        EcuFileHashColumn.Header = _localizer.Text("EcuFiles.Hash");
+        EcuFileChecksumColumn.Header = _localizer.Text("EcuFiles.Checksum");
+        EcuFileImportedAtColumn.Header = _localizer.Text("EcuFiles.ImportedAt");
         ProgrammersListTitle.Text = _localizer.Text("Programmers.ListTitle");
         ProgrammerNameColumn.Header = _localizer.Text("Programmers.Name");
         ProgrammerConnectionColumn.Header = _localizer.Text("Programmers.ConnectionType");
@@ -156,6 +190,114 @@ public partial class MainWindow : Window
         if (_currentArea == ApplicationArea.Programmers)
         {
             LoadProgrammerCapabilities();
+        }
+    }
+
+    private async Task LoadEcuFileVehiclesAsync()
+    {
+        try
+        {
+            var vehicles = await _vehicleService.ListAsync();
+            var selectedVehicleId = (EcuFileVehicleSelector.SelectedItem as VehicleSelectionItem)?.Id;
+            var items = vehicles
+                .Select(vehicle => new VehicleSelectionItem(
+                    vehicle.Id,
+                    $"{vehicle.Make} {vehicle.Model} {vehicle.EngineCode}".Trim()))
+                .ToArray();
+
+            EcuFileVehicleSelector.ItemsSource = items;
+            EcuFileVehicleSelector.SelectedItem = items.FirstOrDefault(item => item.Id == selectedVehicleId) ?? items.FirstOrDefault();
+
+            await LoadEcuFilesForSelectedVehicleAsync();
+        }
+        catch (Exception exception)
+        {
+            _logger.Error("Failed to load ECU file vehicles.", exception);
+            EcuFileMessage.Text = _localizer.Text("EcuFiles.LoadFailure");
+        }
+    }
+
+    private async Task LoadEcuFilesForSelectedVehicleAsync()
+    {
+        if (EcuFileVehicleSelector.SelectedItem is not VehicleSelectionItem selectedVehicle)
+        {
+            EcuFilesGrid.ItemsSource = Array.Empty<EcuFileListItem>();
+            return;
+        }
+
+        var files = await _ecuFileService.ListByVehicleAsync(selectedVehicle.Id);
+        EcuFilesGrid.ItemsSource = files
+            .Select(file => new EcuFileListItem(
+                file.FileName,
+                file.FileType.ToString(),
+                file.SizeBytes,
+                file.Sha256Hash,
+                file.ChecksumStatus.ToString(),
+                file.ImportedAt.LocalDateTime.ToString("yyyy-MM-dd HH:mm")))
+            .ToArray();
+    }
+
+    private async void OnEcuFileVehicleChanged(object sender, SelectionChangedEventArgs e)
+    {
+        await LoadEcuFilesForSelectedVehicleAsync();
+    }
+
+    private void OnSelectEcuFileClick(object sender, RoutedEventArgs e)
+    {
+        var dialog = new OpenFileDialog
+        {
+            Title = _localizer.Text("EcuFiles.SelectFile"),
+            Filter = "ECU files (*.bin;*.ori;*.mod)|*.bin;*.ori;*.mod|All files (*.*)|*.*",
+            CheckFileExists = true,
+            Multiselect = false
+        };
+
+        if (dialog.ShowDialog(this) == true)
+        {
+            EcuFileSourceTextBox.Text = dialog.FileName;
+        }
+    }
+
+    private async void OnRefreshEcuFilesClick(object sender, RoutedEventArgs e)
+    {
+        await LoadEcuFileVehiclesAsync();
+    }
+
+    private async void OnImportEcuFileClick(object sender, RoutedEventArgs e)
+    {
+        EcuFileMessage.Text = string.Empty;
+
+        if (EcuFileVehicleSelector.SelectedItem is not VehicleSelectionItem selectedVehicle)
+        {
+            EcuFileMessage.Text = _localizer.Text("EcuFiles.NoVehicle");
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(EcuFileSourceTextBox.Text))
+        {
+            EcuFileMessage.Text = _localizer.Text("EcuFiles.NoFile");
+            return;
+        }
+
+        var request = new EcuFileImportRequest(
+            selectedVehicle.Id,
+            EcuInfoId: null,
+            EcuFileSourceTextBox.Text,
+            _configuration.BackupDirectory,
+            EcuFileTypeSelector.SelectedItem is EcuFileType fileType ? fileType : EcuFileType.Unknown,
+            EmptyToNull(EcuFileOriginTextBox.Text),
+            EmptyToNull(EcuFileReadMethodTextBox.Text),
+            EmptyToNull(EcuFileProgrammerTextBox.Text),
+            EmptyToNull(EcuFileNotesTextBox.Text));
+
+        var result = await _ecuFileImportService.ImportAsync(request);
+        EcuFileMessage.Text = result.IsSuccess
+            ? _localizer.Text("EcuFiles.ImportSuccess")
+            : $"{_localizer.Text("EcuFiles.ImportFailure")} {result.ErrorMessage}";
+
+        if (result.IsSuccess)
+        {
+            await LoadEcuFilesForSelectedVehicleAsync();
         }
     }
 
@@ -366,6 +508,8 @@ public sealed record VehicleListItem(Guid Id, string Make, string Model, string 
 
 public sealed record VehicleProfileOption(string DisplayName, VehicleProfile? Profile);
 
+public sealed record VehicleSelectionItem(Guid Id, string DisplayName);
+
 public sealed record ProgrammerCapabilityListItem(
     string Name,
     string ConnectionType,
@@ -374,3 +518,11 @@ public sealed record ProgrammerCapabilityListItem(
     string DirectWrite,
     string RequiresExternalSoftware,
     string Notes);
+
+public sealed record EcuFileListItem(
+    string FileName,
+    string FileType,
+    long SizeBytes,
+    string Sha256Hash,
+    string ChecksumStatus,
+    string ImportedAt);

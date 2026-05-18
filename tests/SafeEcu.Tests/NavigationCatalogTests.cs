@@ -22,14 +22,16 @@ public sealed class NavigationCatalogTests
     }
 
     [Fact]
-    public void Dashboard_vehicles_and_programmers_are_marked_implemented_after_phase_four()
+    public void Dashboard_vehicles_ecu_files_and_programmers_are_marked_implemented_after_phase_five()
     {
         var implemented = NavigationCatalog.Sections
             .Where(section => section.IsImplemented)
             .Select(section => section.Area)
             .ToArray();
 
-        Assert.Equal([ApplicationArea.Dashboard, ApplicationArea.Vehicles, ApplicationArea.Programmers], implemented);
+        Assert.Equal(
+            [ApplicationArea.Dashboard, ApplicationArea.Vehicles, ApplicationArea.EcuFiles, ApplicationArea.Programmers],
+            implemented);
     }
 
     [Fact]

@@ -240,6 +240,131 @@
                 </Border>
             </Grid>
 
+            <Grid x:Name="EcuFilesPanel" Grid.Row="1" Visibility="Collapsed">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="*" />
+                </Grid.RowDefinitions>
+
+                <Border Grid.Row="0"
+                        Background="{StaticResource PanelBackgroundBrush}"
+                        BorderBrush="#D6DEE6"
+                        BorderThickness="1"
+                        CornerRadius="6"
+                        Padding="16"
+                        Margin="0,0,0,16">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="2*" />
+                            <ColumnDefinition Width="16" />
+                            <ColumnDefinition Width="2*" />
+                            <ColumnDefinition Width="16" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                        </Grid.RowDefinitions>
+
+                        <StackPanel Grid.Row="0" Grid.Column="0" Margin="0,0,0,12">
+                            <TextBlock x:Name="EcuFileVehicleLabel" Foreground="{StaticResource MutedTextBrush}" />
+                            <ComboBox x:Name="EcuFileVehicleSelector"
+                                      DisplayMemberPath="DisplayName"
+                                      SelectionChanged="OnEcuFileVehicleChanged"
+                                      Margin="0,4,0,0" />
+                        </StackPanel>
+
+                        <StackPanel Grid.Row="0" Grid.Column="2" Margin="0,0,0,12">
+                            <TextBlock x:Name="EcuFileTypeLabel" Foreground="{StaticResource MutedTextBrush}" />
+                            <ComboBox x:Name="EcuFileTypeSelector" Margin="0,4,0,0" />
+                        </StackPanel>
+
+                        <StackPanel Grid.Row="0" Grid.Column="4" Margin="0,0,0,12">
+                            <TextBlock x:Name="EcuFileProgrammerLabel" Foreground="{StaticResource MutedTextBrush}" />
+                            <TextBox x:Name="EcuFileProgrammerTextBox" Margin="0,4,0,0" />
+                        </StackPanel>
+
+                        <StackPanel Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="3" Margin="0,0,0,12">
+                            <TextBlock x:Name="EcuFileSourceLabel" Foreground="{StaticResource MutedTextBrush}" />
+                            <DockPanel Margin="0,4,0,0">
+                                <Button x:Name="SelectEcuFileButton"
+                                        DockPanel.Dock="Right"
+                                        Click="OnSelectEcuFileClick"
+                                        Padding="14,8"
+                                        Margin="8,0,0,0" />
+                                <TextBox x:Name="EcuFileSourceTextBox" IsReadOnly="True" />
+                            </DockPanel>
+                        </StackPanel>
+
+                        <StackPanel Grid.Row="1" Grid.Column="4" Margin="0,0,0,12">
+                            <TextBlock x:Name="EcuFileReadMethodLabel" Foreground="{StaticResource MutedTextBrush}" />
+                            <TextBox x:Name="EcuFileReadMethodTextBox" Margin="0,4,0,0" />
+                        </StackPanel>
+
+                        <StackPanel Grid.Row="2" Grid.Column="0" Margin="0,0,0,0">
+                            <TextBlock x:Name="EcuFileOriginLabel" Foreground="{StaticResource MutedTextBrush}" />
+                            <TextBox x:Name="EcuFileOriginTextBox" Margin="0,4,0,0" />
+                        </StackPanel>
+
+                        <StackPanel Grid.Row="2" Grid.Column="2" Margin="0,0,0,0">
+                            <TextBlock x:Name="EcuFileNotesLabel" Foreground="{StaticResource MutedTextBrush}" />
+                            <TextBox x:Name="EcuFileNotesTextBox" Margin="0,4,0,0" />
+                        </StackPanel>
+
+                        <StackPanel Grid.Row="2" Grid.Column="4" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Bottom">
+                            <Button x:Name="RefreshEcuFilesButton"
+                                    Click="OnRefreshEcuFilesClick"
+                                    Padding="14,8"
+                                    Margin="0,0,8,0" />
+                            <Button x:Name="ImportEcuFileButton"
+                                    Click="OnImportEcuFileClick"
+                                    Padding="14,8"
+                                    Background="{StaticResource AccentBrush}"
+                                    Foreground="White" />
+                        </StackPanel>
+                    </Grid>
+                </Border>
+
+                <Border Grid.Row="1"
+                        Background="{StaticResource PanelBackgroundBrush}"
+                        BorderBrush="#D6DEE6"
+                        BorderThickness="1"
+                        CornerRadius="6"
+                        Padding="16">
+                    <DockPanel>
+                        <StackPanel DockPanel.Dock="Top" Margin="0,0,0,12">
+                            <TextBlock x:Name="EcuFilesListTitle"
+                                       Foreground="{StaticResource PrimaryTextBrush}"
+                                       FontSize="17"
+                                       FontWeight="SemiBold" />
+                            <TextBlock x:Name="EcuFileMessage"
+                                       Foreground="#7A3E00"
+                                       FontSize="13"
+                                       Margin="0,6,0,0"
+                                       TextWrapping="Wrap" />
+                        </StackPanel>
+
+                        <DataGrid x:Name="EcuFilesGrid"
+                                  AutoGenerateColumns="False"
+                                  IsReadOnly="True"
+                                  CanUserAddRows="False"
+                                  HeadersVisibility="Column"
+                                  GridLinesVisibility="Horizontal"
+                                  BorderThickness="0">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn x:Name="EcuFileNameColumn" Binding="{Binding FileName}" Width="2*" />
+                                <DataGridTextColumn x:Name="EcuFileTypeColumn" Binding="{Binding FileType}" Width="*" />
+                                <DataGridTextColumn x:Name="EcuFileSizeColumn" Binding="{Binding SizeBytes}" Width="*" />
+                                <DataGridTextColumn x:Name="EcuFileHashColumn" Binding="{Binding Sha256Hash}" Width="3*" />
+                                <DataGridTextColumn x:Name="EcuFileChecksumColumn" Binding="{Binding ChecksumStatus}" Width="*" />
+                                <DataGridTextColumn x:Name="EcuFileImportedAtColumn" Binding="{Binding ImportedAt}" Width="2*" />
+                            </DataGrid.Columns>
+                        </DataGrid>
+                    </DockPanel>
+                </Border>
+            </Grid>
+
             <Border x:Name="ProgrammersPanel"
                     Grid.Row="1"
                     Background="{StaticResource PanelBackgroundBrush}"
