@@ -1,0 +1,13 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/SafeEcu.App/SafeEcu.App.csproj" />
+    <Project Path="src/SafeEcu.Application/SafeEcu.Application.csproj" />
+    <Project Path="src/SafeEcu.Calibration/SafeEcu.Calibration.csproj" />
+    <Project Path="src/SafeEcu.Domain/SafeEcu.Domain.csproj" />
+    <Project Path="src/SafeEcu.Infrastructure/SafeEcu.Infrastructure.csproj" />
+    <Project Path="src/SafeEcu.Programmers/SafeEcu.Programmers.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/SafeEcu.Tests/SafeEcu.Tests.csproj" />
+  </Folder>
+</Solution>
