@@ -3,6 +3,7 @@ using System.Windows.Controls;
 using SafeEcu.Application.Common;
 using SafeEcu.Application.Localization;
 using SafeEcu.Application.Navigation;
+using SafeEcu.Application.Programmers;
 using SafeEcu.Application.Vehicles;
 using SafeEcu.Domain.Application;
 using SafeEcu.Domain.Vehicles;
@@ -16,6 +17,7 @@ public partial class MainWindow : Window
     private readonly ITextLocalizer _localizer;
     private readonly VehicleService _vehicleService;
     private readonly VehicleProfileCatalog _vehicleProfileCatalog;
+    private readonly ProgrammerCapabilityService _programmerCapabilityService;
     private ApplicationArea _currentArea = ApplicationArea.Dashboard;
     private Guid? _selectedVehicleId;
     private bool _isLoadingVehicle;
@@ -25,13 +27,15 @@ public partial class MainWindow : Window
         AppConfiguration configuration,
         ITextLocalizer localizer,
         VehicleService vehicleService,
-        VehicleProfileCatalog vehicleProfileCatalog)
+        VehicleProfileCatalog vehicleProfileCatalog,
+        ProgrammerCapabilityService programmerCapabilityService)
     {
         _logger = logger;
         _configuration = configuration;
         _localizer = localizer;
         _vehicleService = vehicleService;
         _vehicleProfileCatalog = vehicleProfileCatalog;
+        _programmerCapabilityService = programmerCapabilityService;
 
         InitializeComponent();
 
@@ -65,12 +69,19 @@ public partial class MainWindow : Window
             ? _localizer.Text("Status.AvailableNow")
             : _localizer.Text("Status.FuturePhase");
         SectionBody.Text = BuildBody(section);
-        GenericPanel.Visibility = area == ApplicationArea.Vehicles ? Visibility.Collapsed : Visibility.Visible;
+        var isVehicles = area == ApplicationArea.Vehicles;
+        var isProgrammers = area == ApplicationArea.Programmers;
+        GenericPanel.Visibility = isVehicles || isProgrammers ? Visibility.Collapsed : Visibility.Visible;
         VehiclesPanel.Visibility = area == ApplicationArea.Vehicles ? Visibility.Visible : Visibility.Collapsed;
+        ProgrammersPanel.Visibility = isProgrammers ? Visibility.Visible : Visibility.Collapsed;
 
-        if (area == ApplicationArea.Vehicles)
+        if (isVehicles)
         {
             _ = LoadVehiclesAsync();
+        }
+        else if (isProgrammers)
+        {
+            LoadProgrammerCapabilities();
         }
 
         _logger.Information($"Navigation selected: {section.Area}.");
@@ -126,12 +137,39 @@ public partial class MainWindow : Window
         VehicleFormTitle.Text = _selectedVehicleId is null
             ? _localizer.Text("Vehicles.FormTitle.New")
             : _localizer.Text("Vehicles.FormTitle.Edit");
+        ProgrammersListTitle.Text = _localizer.Text("Programmers.ListTitle");
+        ProgrammerNameColumn.Header = _localizer.Text("Programmers.Name");
+        ProgrammerConnectionColumn.Header = _localizer.Text("Programmers.ConnectionType");
+        ProgrammerModeColumn.Header = _localizer.Text("Programmers.Mode");
+        ProgrammerDirectReadColumn.Header = _localizer.Text("Programmers.DirectRead");
+        ProgrammerDirectWriteColumn.Header = _localizer.Text("Programmers.DirectWrite");
+        ProgrammerExternalSoftwareColumn.Header = _localizer.Text("Programmers.ExternalSoftware");
+        ProgrammerNotesColumn.Header = _localizer.Text("Programmers.Notes");
         NavigationItems.ItemsSource = NavigationCatalog.Sections
             .Select(section => new
             {
                 section.Area,
                 Title = _localizer.Text(section.TitleKey)
             })
+            .ToArray();
+
+        if (_currentArea == ApplicationArea.Programmers)
+        {
+            LoadProgrammerCapabilities();
+        }
+    }
+
+    private void LoadProgrammerCapabilities()
+    {
+        ProgrammersGrid.ItemsSource = _programmerCapabilityService.GetCapabilities()
+            .Select(capability => new ProgrammerCapabilityListItem(
+                capability.Name,
+                capability.ConnectionType,
+                capability.SupportedMode.ToString(),
+                FormatBoolean(capability.DirectReadSupported),
+                FormatBoolean(capability.DirectWriteSupported),
+                FormatBoolean(capability.RequiresExternalSoftware),
+                capability.Notes))
             .ToArray();
     }
 
@@ -319,8 +357,20 @@ public partial class MainWindow : Window
 
     private static string? EmptyToNull(string value) =>
         string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+
+    private string FormatBoolean(bool value) =>
+        value ? _localizer.Text("Common.Yes") : _localizer.Text("Common.No");
 }
 
 public sealed record VehicleListItem(Guid Id, string Make, string Model, string EngineCode, int? Year);
 
 public sealed record VehicleProfileOption(string DisplayName, VehicleProfile? Profile);
+
+public sealed record ProgrammerCapabilityListItem(
+    string Name,
+    string ConnectionType,
+    string SupportedMode,
+    string DirectRead,
+    string DirectWrite,
+    string RequiresExternalSoftware,
+    string Notes);

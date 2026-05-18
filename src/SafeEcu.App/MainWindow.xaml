@@ -240,6 +240,42 @@
                 </Border>
             </Grid>
 
+            <Border x:Name="ProgrammersPanel"
+                    Grid.Row="1"
+                    Background="{StaticResource PanelBackgroundBrush}"
+                    BorderBrush="#D6DEE6"
+                    BorderThickness="1"
+                    CornerRadius="6"
+                    Padding="16"
+                    Visibility="Collapsed">
+                <DockPanel>
+                    <TextBlock x:Name="ProgrammersListTitle"
+                               DockPanel.Dock="Top"
+                               Foreground="{StaticResource PrimaryTextBrush}"
+                               FontSize="17"
+                               FontWeight="SemiBold"
+                               Margin="0,0,0,12" />
+
+                    <DataGrid x:Name="ProgrammersGrid"
+                              AutoGenerateColumns="False"
+                              IsReadOnly="True"
+                              CanUserAddRows="False"
+                              HeadersVisibility="Column"
+                              GridLinesVisibility="Horizontal"
+                              BorderThickness="0">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn x:Name="ProgrammerNameColumn" Binding="{Binding Name}" Width="2*" />
+                            <DataGridTextColumn x:Name="ProgrammerConnectionColumn" Binding="{Binding ConnectionType}" Width="*" />
+                            <DataGridTextColumn x:Name="ProgrammerModeColumn" Binding="{Binding SupportedMode}" Width="*" />
+                            <DataGridTextColumn x:Name="ProgrammerDirectReadColumn" Binding="{Binding DirectRead}" Width="*" />
+                            <DataGridTextColumn x:Name="ProgrammerDirectWriteColumn" Binding="{Binding DirectWrite}" Width="*" />
+                            <DataGridTextColumn x:Name="ProgrammerExternalSoftwareColumn" Binding="{Binding RequiresExternalSoftware}" Width="*" />
+                            <DataGridTextColumn x:Name="ProgrammerNotesColumn" Binding="{Binding Notes}" Width="3*" />
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </DockPanel>
+            </Border>
+
             <TextBlock x:Name="SafeModeFooter"
                        Grid.Row="2"
                        Foreground="#7A3E00"

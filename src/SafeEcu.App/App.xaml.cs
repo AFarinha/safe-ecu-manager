@@ -2,10 +2,12 @@ using System.Windows;
 using System.Windows.Threading;
 using SafeEcu.Application.Common;
 using SafeEcu.Application.Localization;
+using SafeEcu.Application.Programmers;
 using SafeEcu.Application.Vehicles;
 using SafeEcu.Infrastructure.Logging;
 using SafeEcu.Infrastructure.Persistence;
 using SafeEcu.Infrastructure.Persistence.Repositories;
+using SafeEcu.Programmers;
 
 namespace SafeEcu.App;
 
@@ -39,8 +41,9 @@ public partial class App : System.Windows.Application
         var vehicleRepository = new VehicleRepository(dbContextFactory);
         var vehicleService = new VehicleService(vehicleRepository, _logger);
         var vehicleProfileCatalog = new VehicleProfileCatalog();
+        var programmerCapabilityService = new ProgrammerCapabilityService(ProgrammerAdapterCatalog.CreateDefaultAdapters());
 
-        var mainWindow = new MainWindow(_logger, configuration, localizer, vehicleService, vehicleProfileCatalog);
+        var mainWindow = new MainWindow(_logger, configuration, localizer, vehicleService, vehicleProfileCatalog, programmerCapabilityService);
         mainWindow.Show();
     }
 
