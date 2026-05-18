@@ -44,9 +44,11 @@ public partial class App : System.Windows.Application
         var ecuFileRepository = new EcuFileRepository(dbContextFactory);
         var vehicleService = new VehicleService(vehicleRepository, _logger);
         var ecuFileService = new EcuFileService(ecuFileRepository, _logger);
+        var ecuFileValidationService = new EcuFileValidationService(ecuFileRepository);
         var ecuFileImportService = new EcuFileImportService(
             ecuInfoRepository,
             ecuFileService,
+            ecuFileValidationService,
             new Sha256FileHashService(),
             _logger);
         var vehicleProfileCatalog = new VehicleProfileCatalog();

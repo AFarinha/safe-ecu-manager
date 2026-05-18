@@ -116,10 +116,12 @@ public sealed class EcuFileImportServiceTests : IDisposable
         var ecuInfoRepository = new EcuInfoRepository(_dbContextFactory);
         var ecuFileRepository = new EcuFileRepository(_dbContextFactory);
         var ecuFileService = new EcuFileService(ecuFileRepository, _logger);
+        var validationService = new EcuFileValidationService(ecuFileRepository);
 
         return new EcuFileImportService(
             ecuInfoRepository,
             ecuFileService,
+            validationService,
             new Sha256FileHashService(),
             _logger);
     }

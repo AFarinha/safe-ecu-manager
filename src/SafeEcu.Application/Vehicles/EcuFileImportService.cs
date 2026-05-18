@@ -8,26 +8,22 @@ namespace SafeEcu.Application.Vehicles;
 
 public sealed class EcuFileImportService
 {
-    private static readonly HashSet<string> AllowedExtensions = new(StringComparer.OrdinalIgnoreCase)
-    {
-        ".bin",
-        ".ori",
-        ".mod"
-    };
-
     private readonly IEcuInfoRepository _ecuInfoRepository;
     private readonly EcuFileService _ecuFileService;
+    private readonly EcuFileValidationService _ecuFileValidationService;
     private readonly IFileHashService _fileHashService;
     private readonly IAppLogger _logger;
 
     public EcuFileImportService(
         IEcuInfoRepository ecuInfoRepository,
         EcuFileService ecuFileService,
+        EcuFileValidationService ecuFileValidationService,
         IFileHashService fileHashService,
         IAppLogger logger)
     {
         _ecuInfoRepository = ecuInfoRepository;
         _ecuFileService = ecuFileService;
+        _ecuFileValidationService = ecuFileValidationService;
         _fileHashService = fileHashService;
         _logger = logger;
     }
@@ -36,30 +32,40 @@ public sealed class EcuFileImportService
         EcuFileImportRequest request,
         CancellationToken cancellationToken = default)
     {
-        if (request.VehicleId == Guid.Empty)
+        var validation = await _ecuFileValidationService.ValidateForImportAsync(
+            new EcuFileValidationRequest(
+                request.VehicleId,
+                request.EcuInfoId,
+                request.SourceFilePath,
+                request.FileType,
+                request.FileOrigin,
+                request.ReadMethod,
+                request.ProgrammerUsed),
+            cancellationToken);
+        if (!validation.IsValid)
         {
-            return OperationResult<EcuFile>.Failure("A vehicle must be selected before importing an ECU file.");
+            return OperationResult<EcuFile>.Failure(validation.ToDisplayText());
         }
 
-        if (string.IsNullOrWhiteSpace(request.SourceFilePath) || !File.Exists(request.SourceFilePath))
+        var sha256Hash = await _fileHashService.ComputeSha256Async(request.SourceFilePath, cancellationToken);
+        var validationWithHash = await _ecuFileValidationService.ValidateForImportAsync(
+            new EcuFileValidationRequest(
+                request.VehicleId,
+                request.EcuInfoId,
+                request.SourceFilePath,
+                request.FileType,
+                request.FileOrigin,
+                request.ReadMethod,
+                request.ProgrammerUsed,
+                sha256Hash),
+            cancellationToken);
+        if (!validationWithHash.IsValid)
         {
-            return OperationResult<EcuFile>.Failure("The selected ECU file does not exist.");
-        }
-
-        var extension = Path.GetExtension(request.SourceFilePath);
-        if (!AllowedExtensions.Contains(extension))
-        {
-            return OperationResult<EcuFile>.Failure("The selected file extension is not supported. Allowed extensions: .bin, .ori, .mod.");
+            return OperationResult<EcuFile>.Failure(validationWithHash.ToDisplayText());
         }
 
         var sourceFileInfo = new FileInfo(request.SourceFilePath);
-        if (sourceFileInfo.Length <= 0)
-        {
-            return OperationResult<EcuFile>.Failure("The selected ECU file is empty.");
-        }
-
         var ecuInfoId = request.EcuInfoId ?? await GetOrCreateUnknownEcuInfoAsync(request.VehicleId, cancellationToken);
-        var sha256Hash = await _fileHashService.ComputeSha256Async(request.SourceFilePath, cancellationToken);
         var backupPath = CreateBackupPath(request.BackupDirectory, request.VehicleId, sha256Hash, sourceFileInfo.Name);
 
         Directory.CreateDirectory(Path.GetDirectoryName(backupPath)!);
