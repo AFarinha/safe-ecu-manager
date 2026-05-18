@@ -1,5 +1,6 @@
 using System.Windows;
 using System.Windows.Threading;
+using SafeEcu.Calibration;
 using SafeEcu.Application.Common;
 using SafeEcu.Application.Localization;
 using SafeEcu.Application.Programmers;
@@ -51,6 +52,8 @@ public partial class App : System.Windows.Application
             ecuFileValidationService,
             new Sha256FileHashService(),
             _logger);
+        var comparisonRepository = new CalibrationComparisonRepository(dbContextFactory);
+        var binaryComparisonService = new BinaryComparisonService(ecuFileRepository, comparisonRepository, _logger);
         var vehicleProfileCatalog = new VehicleProfileCatalog();
         var programmerCapabilityService = new ProgrammerCapabilityService(ProgrammerAdapterCatalog.CreateDefaultAdapters());
 
@@ -62,7 +65,8 @@ public partial class App : System.Windows.Application
             vehicleProfileCatalog,
             programmerCapabilityService,
             ecuFileImportService,
-            ecuFileService);
+            ecuFileService,
+            binaryComparisonService);
         mainWindow.Show();
     }
 

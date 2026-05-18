@@ -1,6 +1,8 @@
 using System.Windows;
 using System.Windows.Controls;
 using Microsoft.Win32;
+using SafeEcu.Calibration;
+using SafeEcu.Application.Calibrations;
 using SafeEcu.Application.Common;
 using SafeEcu.Application.Localization;
 using SafeEcu.Application.Navigation;
@@ -21,6 +23,7 @@ public partial class MainWindow : Window
     private readonly ProgrammerCapabilityService _programmerCapabilityService;
     private readonly EcuFileImportService _ecuFileImportService;
     private readonly EcuFileService _ecuFileService;
+    private readonly BinaryComparisonService _binaryComparisonService;
     private ApplicationArea _currentArea = ApplicationArea.Dashboard;
     private Guid? _selectedVehicleId;
     private bool _isLoadingVehicle;
@@ -33,7 +36,8 @@ public partial class MainWindow : Window
         VehicleProfileCatalog vehicleProfileCatalog,
         ProgrammerCapabilityService programmerCapabilityService,
         EcuFileImportService ecuFileImportService,
-        EcuFileService ecuFileService)
+        EcuFileService ecuFileService,
+        BinaryComparisonService binaryComparisonService)
     {
         _logger = logger;
         _configuration = configuration;
@@ -43,6 +47,7 @@ public partial class MainWindow : Window
         _programmerCapabilityService = programmerCapabilityService;
         _ecuFileImportService = ecuFileImportService;
         _ecuFileService = ecuFileService;
+        _binaryComparisonService = binaryComparisonService;
 
         InitializeComponent();
 
@@ -82,10 +87,12 @@ public partial class MainWindow : Window
         SectionBody.Text = BuildBody(section);
         var isVehicles = area == ApplicationArea.Vehicles;
         var isEcuFiles = area == ApplicationArea.EcuFiles;
+        var isComparison = area == ApplicationArea.Comparison;
         var isProgrammers = area == ApplicationArea.Programmers;
-        GenericPanel.Visibility = isVehicles || isEcuFiles || isProgrammers ? Visibility.Collapsed : Visibility.Visible;
+        GenericPanel.Visibility = isVehicles || isEcuFiles || isComparison || isProgrammers ? Visibility.Collapsed : Visibility.Visible;
         VehiclesPanel.Visibility = isVehicles ? Visibility.Visible : Visibility.Collapsed;
         EcuFilesPanel.Visibility = isEcuFiles ? Visibility.Visible : Visibility.Collapsed;
+        ComparisonPanel.Visibility = isComparison ? Visibility.Visible : Visibility.Collapsed;
         ProgrammersPanel.Visibility = isProgrammers ? Visibility.Visible : Visibility.Collapsed;
 
         if (isVehicles)
@@ -95,6 +102,10 @@ public partial class MainWindow : Window
         else if (isEcuFiles)
         {
             _ = LoadEcuFileVehiclesAsync();
+        }
+        else if (isComparison)
+        {
+            _ = LoadComparisonVehiclesAsync();
         }
         else if (isProgrammers)
         {
@@ -179,6 +190,18 @@ public partial class MainWindow : Window
         ProgrammerDirectWriteColumn.Header = _localizer.Text("Programmers.DirectWrite");
         ProgrammerExternalSoftwareColumn.Header = _localizer.Text("Programmers.ExternalSoftware");
         ProgrammerNotesColumn.Header = _localizer.Text("Programmers.Notes");
+        ComparisonVehicleLabel.Text = _localizer.Text("Comparison.Vehicle");
+        ComparisonOriginalFileLabel.Text = _localizer.Text("Comparison.OriginalFile");
+        ComparisonModifiedFileLabel.Text = _localizer.Text("Comparison.ModifiedFile");
+        RefreshComparisonsButton.Content = _localizer.Text("Comparison.Refresh");
+        RunComparisonButton.Content = _localizer.Text("Comparison.Compare");
+        ComparisonResultsTitle.Text = _localizer.Text("Comparison.Results");
+        ComparisonOriginalColumn.Header = _localizer.Text("Comparison.OriginalFile");
+        ComparisonModifiedColumn.Header = _localizer.Text("Comparison.ModifiedFile");
+        ComparisonDifferencesColumn.Header = _localizer.Text("Comparison.Differences");
+        ComparisonPercentColumn.Header = _localizer.Text("Comparison.PercentChanged");
+        ComparisonResultColumn.Header = _localizer.Text("Comparison.Result");
+        ComparisonComparedAtColumn.Header = _localizer.Text("Comparison.ComparedAt");
         NavigationItems.ItemsSource = NavigationCatalog.Sections
             .Select(section => new
             {
@@ -190,6 +213,118 @@ public partial class MainWindow : Window
         if (_currentArea == ApplicationArea.Programmers)
         {
             LoadProgrammerCapabilities();
+        }
+        else if (_currentArea == ApplicationArea.Comparison)
+        {
+            _ = LoadComparisonResultsAsync();
+        }
+    }
+
+    private async Task LoadComparisonVehiclesAsync()
+    {
+        try
+        {
+            var vehicles = await _vehicleService.ListAsync();
+            var selectedVehicleId = (ComparisonVehicleSelector.SelectedItem as VehicleSelectionItem)?.Id;
+            var items = vehicles
+                .Select(vehicle => new VehicleSelectionItem(
+                    vehicle.Id,
+                    $"{vehicle.Make} {vehicle.Model} {vehicle.EngineCode}".Trim()))
+                .ToArray();
+
+            ComparisonVehicleSelector.ItemsSource = items;
+            ComparisonVehicleSelector.SelectedItem = items.FirstOrDefault(item => item.Id == selectedVehicleId) ?? items.FirstOrDefault();
+
+            await LoadComparisonFilesForSelectedVehicleAsync();
+            await LoadComparisonResultsAsync();
+        }
+        catch (Exception exception)
+        {
+            _logger.Error("Failed to load comparison vehicles.", exception);
+            ComparisonMessage.Text = _localizer.Text("Comparison.LoadFailure");
+        }
+    }
+
+    private async Task LoadComparisonFilesForSelectedVehicleAsync()
+    {
+        if (ComparisonVehicleSelector.SelectedItem is not VehicleSelectionItem selectedVehicle)
+        {
+            ComparisonOriginalFileSelector.ItemsSource = Array.Empty<EcuFileSelectionItem>();
+            ComparisonModifiedFileSelector.ItemsSource = Array.Empty<EcuFileSelectionItem>();
+            return;
+        }
+
+        var files = await _ecuFileService.ListByVehicleAsync(selectedVehicle.Id);
+        var originalFiles = files
+            .Where(file => file.FileType == EcuFileType.Original)
+            .Select(ToEcuFileSelectionItem)
+            .ToArray();
+        var modifiedFiles = files
+            .Where(file => file.FileType == EcuFileType.Modified)
+            .Select(ToEcuFileSelectionItem)
+            .ToArray();
+
+        ComparisonOriginalFileSelector.ItemsSource = originalFiles;
+        ComparisonModifiedFileSelector.ItemsSource = modifiedFiles;
+        ComparisonOriginalFileSelector.SelectedItem = originalFiles.FirstOrDefault();
+        ComparisonModifiedFileSelector.SelectedItem = modifiedFiles.FirstOrDefault();
+    }
+
+    private async Task LoadComparisonResultsAsync()
+    {
+        var comparisons = await _binaryComparisonService.ListAsync();
+        ComparisonsGrid.ItemsSource = comparisons
+            .Select(comparison => new ComparisonListItem(
+                comparison.OriginalFileId.ToString("N")[..12],
+                comparison.ModifiedFileId.ToString("N")[..12],
+                comparison.DifferenceCount,
+                $"{comparison.PercentChanged:0.######}%",
+                comparison.Result,
+                comparison.ComparedAt.LocalDateTime.ToString("yyyy-MM-dd HH:mm")))
+            .ToArray();
+    }
+
+    private async void OnComparisonVehicleChanged(object sender, SelectionChangedEventArgs e)
+    {
+        await LoadComparisonFilesForSelectedVehicleAsync();
+    }
+
+    private async void OnRefreshComparisonsClick(object sender, RoutedEventArgs e)
+    {
+        await LoadComparisonVehiclesAsync();
+    }
+
+    private async void OnRunComparisonClick(object sender, RoutedEventArgs e)
+    {
+        ComparisonMessage.Text = string.Empty;
+
+        if (ComparisonVehicleSelector.SelectedItem is not VehicleSelectionItem)
+        {
+            ComparisonMessage.Text = _localizer.Text("Comparison.NoVehicle");
+            return;
+        }
+
+        if (ComparisonOriginalFileSelector.SelectedItem is not EcuFileSelectionItem originalFile)
+        {
+            ComparisonMessage.Text = _localizer.Text("Comparison.NoOriginal");
+            return;
+        }
+
+        if (ComparisonModifiedFileSelector.SelectedItem is not EcuFileSelectionItem modifiedFile)
+        {
+            ComparisonMessage.Text = _localizer.Text("Comparison.NoModified");
+            return;
+        }
+
+        var result = await _binaryComparisonService.CompareAsync(
+            new BinaryComparisonRequest(originalFile.Id, modifiedFile.Id));
+        ComparisonMessage.Text = result.IsSuccess
+            ? _localizer.Text("Comparison.Success")
+            : $"{_localizer.Text("Comparison.Failure")} {result.ErrorMessage}";
+
+        if (result.IsSuccess)
+        {
+            await LoadComparisonResultsAsync();
         }
     }
 
@@ -500,6 +635,9 @@ public partial class MainWindow : Window
     private static string? EmptyToNull(string value) =>
         string.IsNullOrWhiteSpace(value) ? null : value.Trim();
 
+    private static EcuFileSelectionItem ToEcuFileSelectionItem(EcuFile file) =>
+        new(file.Id, $"{file.FileName} ({file.Sha256Hash[..12]})");
+
     private string FormatBoolean(bool value) =>
         value ? _localizer.Text("Common.Yes") : _localizer.Text("Common.No");
 }
@@ -526,3 +664,13 @@ public sealed record EcuFileListItem(
     string Sha256Hash,
     string ChecksumStatus,
     string ImportedAt);
+
+public sealed record EcuFileSelectionItem(Guid Id, string DisplayName);
+
+public sealed record ComparisonListItem(
+    string OriginalFileId,
+    string ModifiedFileId,
+    long DifferenceCount,
+    string PercentChanged,
+    string Result,
+    string ComparedAt);

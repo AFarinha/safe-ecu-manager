@@ -11,7 +11,7 @@ public static class NavigationCatalog
         new(ApplicationArea.Ecus, "Nav.Ecus.Title", "Nav.Ecus.Description", false),
         new(ApplicationArea.EcuFiles, "Nav.EcuFiles.Title", "Nav.EcuFiles.Description", true),
         new(ApplicationArea.Programmers, "Nav.Programmers.Title", "Nav.Programmers.Description", true),
-        new(ApplicationArea.Comparison, "Nav.Comparison.Title", "Nav.Comparison.Description", false),
+        new(ApplicationArea.Comparison, "Nav.Comparison.Title", "Nav.Comparison.Description", true),
         new(ApplicationArea.Reports, "Nav.Reports.Title", "Nav.Reports.Description", false),
         new(ApplicationArea.Audit, "Nav.Audit.Title", "Nav.Audit.Description", false),
         new(ApplicationArea.Settings, "Nav.Settings.Title", "Nav.Settings.Description", false)

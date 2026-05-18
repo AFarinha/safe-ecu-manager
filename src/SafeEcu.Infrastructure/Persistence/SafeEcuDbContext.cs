@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using SafeEcu.Domain.Calibrations;
 using SafeEcu.Domain.Vehicles;
 
 namespace SafeEcu.Infrastructure.Persistence;
@@ -16,11 +17,14 @@ public sealed class SafeEcuDbContext : DbContext
 
     public DbSet<EcuFile> EcuFiles => Set<EcuFile>();
 
+    public DbSet<CalibrationComparison> CalibrationComparisons => Set<CalibrationComparison>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         ConfigureVehicle(modelBuilder);
         ConfigureEcuInfo(modelBuilder);
         ConfigureEcuFile(modelBuilder);
+        ConfigureCalibrationComparison(modelBuilder);
     }
 
     private static void ConfigureVehicle(ModelBuilder modelBuilder)
@@ -90,5 +94,30 @@ public sealed class SafeEcuDbContext : DbContext
         entity.HasIndex(file => file.VehicleId);
         entity.HasIndex(file => file.EcuInfoId);
         entity.HasIndex(file => file.Sha256Hash).IsUnique();
+    }
+
+    private static void ConfigureCalibrationComparison(ModelBuilder modelBuilder)
+    {
+        var entity = modelBuilder.Entity<CalibrationComparison>();
+
+        entity.HasKey(comparison => comparison.Id);
+        entity.Property(comparison => comparison.Result).HasMaxLength(80).IsRequired();
+        entity.Property(comparison => comparison.PercentChanged).HasColumnType("decimal(18,6)");
+
+        entity
+            .HasOne(comparison => comparison.OriginalFile)
+            .WithMany()
+            .HasForeignKey(comparison => comparison.OriginalFileId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        entity
+            .HasOne(comparison => comparison.ModifiedFile)
+            .WithMany()
+            .HasForeignKey(comparison => comparison.ModifiedFileId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        entity.HasIndex(comparison => comparison.OriginalFileId);
+        entity.HasIndex(comparison => comparison.ModifiedFileId);
+        entity.HasIndex(comparison => comparison.ComparedAt);
     }
 }

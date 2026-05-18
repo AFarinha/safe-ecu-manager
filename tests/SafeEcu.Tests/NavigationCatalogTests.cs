@@ -22,7 +22,7 @@ public sealed class NavigationCatalogTests
     }
 
     [Fact]
-    public void Dashboard_vehicles_ecu_files_and_programmers_are_marked_implemented_after_phase_five()
+    public void Phase_seven_sections_are_marked_implemented()
     {
         var implemented = NavigationCatalog.Sections
             .Where(section => section.IsImplemented)
@@ -30,7 +30,13 @@ public sealed class NavigationCatalogTests
             .ToArray();
 
         Assert.Equal(
-            [ApplicationArea.Dashboard, ApplicationArea.Vehicles, ApplicationArea.EcuFiles, ApplicationArea.Programmers],
+            [
+                ApplicationArea.Dashboard,
+                ApplicationArea.Vehicles,
+                ApplicationArea.EcuFiles,
+                ApplicationArea.Programmers,
+                ApplicationArea.Comparison
+            ],
             implemented);
     }
 
