@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using SafeEcu.Domain.Auditing;
 using SafeEcu.Domain.Calibrations;
 using SafeEcu.Domain.Vehicles;
 
@@ -19,12 +20,15 @@ public sealed class SafeEcuDbContext : DbContext
 
     public DbSet<CalibrationComparison> CalibrationComparisons => Set<CalibrationComparison>();
 
+    public DbSet<AuditLogEntry> AuditLogEntries => Set<AuditLogEntry>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         ConfigureVehicle(modelBuilder);
         ConfigureEcuInfo(modelBuilder);
         ConfigureEcuFile(modelBuilder);
         ConfigureCalibrationComparison(modelBuilder);
+        ConfigureAuditLogEntry(modelBuilder);
     }
 
     private static void ConfigureVehicle(ModelBuilder modelBuilder)
@@ -119,5 +123,23 @@ public sealed class SafeEcuDbContext : DbContext
         entity.HasIndex(comparison => comparison.OriginalFileId);
         entity.HasIndex(comparison => comparison.ModifiedFileId);
         entity.HasIndex(comparison => comparison.ComparedAt);
+    }
+
+    private static void ConfigureAuditLogEntry(ModelBuilder modelBuilder)
+    {
+        var entity = modelBuilder.Entity<AuditLogEntry>();
+
+        entity.HasKey(entry => entry.Id);
+        entity.Property(entry => entry.Action).HasMaxLength(120).IsRequired();
+        entity.Property(entry => entry.EntityType).HasMaxLength(120).IsRequired();
+        entity.Property(entry => entry.EntityId).HasMaxLength(120);
+        entity.Property(entry => entry.Severity).HasMaxLength(40).IsRequired();
+        entity.Property(entry => entry.Message).HasMaxLength(1000).IsRequired();
+        entity.Property(entry => entry.Details).HasMaxLength(4000);
+        entity.Property(entry => entry.UserOrMachineName).HasMaxLength(160);
+
+        entity.HasIndex(entry => entry.Timestamp);
+        entity.HasIndex(entry => entry.CorrelationId);
+        entity.HasIndex(entry => new { entry.EntityType, entry.EntityId });
     }
 }

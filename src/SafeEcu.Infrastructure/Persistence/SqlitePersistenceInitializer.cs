@@ -22,6 +22,7 @@ public sealed class SqlitePersistenceInitializer : IPersistenceInitializer
             await using var dbContext = _dbContextFactory.Create();
             await dbContext.Database.EnsureCreatedAsync(cancellationToken);
             await EnsureCalibrationComparisonTableAsync(dbContext, cancellationToken);
+            await EnsureAuditLogTableAsync(dbContext, cancellationToken);
             _logger.Information("SQLite database initialized.");
 
             return OperationResult.Success();
@@ -52,6 +53,29 @@ public sealed class SqlitePersistenceInitializer : IPersistenceInitializer
             CREATE INDEX IF NOT EXISTS "IX_CalibrationComparisons_OriginalFileId" ON "CalibrationComparisons" ("OriginalFileId");
             CREATE INDEX IF NOT EXISTS "IX_CalibrationComparisons_ModifiedFileId" ON "CalibrationComparisons" ("ModifiedFileId");
             CREATE INDEX IF NOT EXISTS "IX_CalibrationComparisons_ComparedAt" ON "CalibrationComparisons" ("ComparedAt");
+            """,
+            cancellationToken);
+
+    private static Task EnsureAuditLogTableAsync(
+        SafeEcuDbContext dbContext,
+        CancellationToken cancellationToken) =>
+        dbContext.Database.ExecuteSqlRawAsync(
+            """
+            CREATE TABLE IF NOT EXISTS "AuditLogEntries" (
+                "Id" TEXT NOT NULL CONSTRAINT "PK_AuditLogEntries" PRIMARY KEY,
+                "Action" TEXT NOT NULL,
+                "EntityType" TEXT NOT NULL,
+                "EntityId" TEXT NOT NULL,
+                "Timestamp" TEXT NOT NULL,
+                "Severity" TEXT NOT NULL,
+                "Message" TEXT NOT NULL,
+                "Details" TEXT NOT NULL,
+                "UserOrMachineName" TEXT NOT NULL,
+                "CorrelationId" TEXT NOT NULL
+            );
+            CREATE INDEX IF NOT EXISTS "IX_AuditLogEntries_Timestamp" ON "AuditLogEntries" ("Timestamp");
+            CREATE INDEX IF NOT EXISTS "IX_AuditLogEntries_CorrelationId" ON "AuditLogEntries" ("CorrelationId");
+            CREATE INDEX IF NOT EXISTS "IX_AuditLogEntries_EntityType_EntityId" ON "AuditLogEntries" ("EntityType", "EntityId");
             """,
             cancellationToken);
 }
