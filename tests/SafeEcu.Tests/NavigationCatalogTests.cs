@@ -22,7 +22,7 @@ public sealed class NavigationCatalogTests
     }
 
     [Fact]
-    public void Phase_eight_sections_are_marked_implemented()
+    public void Phase_nine_sections_are_marked_implemented()
     {
         var implemented = NavigationCatalog.Sections
             .Where(section => section.IsImplemented)
@@ -33,6 +33,7 @@ public sealed class NavigationCatalogTests
             [
                 ApplicationArea.Dashboard,
                 ApplicationArea.Vehicles,
+                ApplicationArea.Ecus,
                 ApplicationArea.EcuFiles,
                 ApplicationArea.Programmers,
                 ApplicationArea.Comparison,

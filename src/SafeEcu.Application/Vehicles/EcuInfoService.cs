@@ -8,11 +8,16 @@ public sealed class EcuInfoService
 {
     private readonly IEcuInfoRepository _ecuInfoRepository;
     private readonly IAppLogger _logger;
+    private readonly EcuIdentificationService _identificationService;
 
-    public EcuInfoService(IEcuInfoRepository ecuInfoRepository, IAppLogger logger)
+    public EcuInfoService(
+        IEcuInfoRepository ecuInfoRepository,
+        IAppLogger logger,
+        EcuIdentificationService? identificationService = null)
     {
         _ecuInfoRepository = ecuInfoRepository;
         _logger = logger;
+        _identificationService = identificationService ?? new EcuIdentificationService();
     }
 
     public async Task<OperationResult<EcuInfo>> CreateAsync(
@@ -32,4 +37,52 @@ public sealed class EcuInfoService
 
         return OperationResult<EcuInfo>.Success(ecuInfo);
     }
+
+    public async Task<OperationResult<EcuInfo>> UpdateAsync(
+        EcuInfo ecuInfo,
+        CancellationToken cancellationToken = default)
+    {
+        if (ecuInfo.Id == Guid.Empty)
+        {
+            return OperationResult<EcuInfo>.Failure("ECU/EDU id is required.");
+        }
+
+        if (ecuInfo.VehicleId == Guid.Empty)
+        {
+            return OperationResult<EcuInfo>.Failure("The ECU/EDU must be associated with a vehicle.");
+        }
+
+        var existing = await _ecuInfoRepository.GetByIdAsync(ecuInfo.Id, cancellationToken);
+        if (existing is null)
+        {
+            return OperationResult<EcuInfo>.Failure("ECU/EDU was not found.");
+        }
+
+        existing.Manufacturer = Normalize(ecuInfo.Manufacturer);
+        existing.EcuFamily = Normalize(ecuInfo.EcuFamily);
+        existing.HardwareReference = Normalize(ecuInfo.HardwareReference);
+        existing.SoftwareReference = Normalize(ecuInfo.SoftwareReference);
+        existing.SoftwareVersion = Normalize(ecuInfo.SoftwareVersion);
+        existing.Protocol = Normalize(ecuInfo.Protocol);
+        existing.SupportStatus = ecuInfo.SupportStatus;
+        existing.Notes = Normalize(ecuInfo.Notes);
+        existing.UpdatedAt = DateTimeOffset.UtcNow;
+
+        await _ecuInfoRepository.UpdateAsync(existing, cancellationToken);
+        _logger.Information($"ECU info updated: {existing.Id}.");
+
+        return OperationResult<EcuInfo>.Success(existing);
+    }
+
+    public Task<EcuInfo?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default) =>
+        _ecuInfoRepository.GetByIdAsync(id, cancellationToken);
+
+    public Task<IReadOnlyList<EcuInfo>> ListByVehicleAsync(Guid vehicleId, CancellationToken cancellationToken = default) =>
+        _ecuInfoRepository.ListByVehicleAsync(vehicleId, cancellationToken);
+
+    public EcuIdentificationResult EvaluateIdentification(EcuInfo ecuInfo) =>
+        _identificationService.Evaluate(ecuInfo);
+
+    private static string? Normalize(string? value) =>
+        string.IsNullOrWhiteSpace(value) ? null : value.Trim();
 }

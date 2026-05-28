@@ -20,6 +20,7 @@ public partial class MainWindow : Window
     private readonly AppConfiguration _configuration;
     private readonly ITextLocalizer _localizer;
     private readonly VehicleService _vehicleService;
+    private readonly EcuInfoService _ecuInfoService;
     private readonly VehicleProfileCatalog _vehicleProfileCatalog;
     private readonly ProgrammerCapabilityService _programmerCapabilityService;
     private readonly EcuFileImportService _ecuFileImportService;
@@ -28,13 +29,16 @@ public partial class MainWindow : Window
     private readonly IReportService _reportService;
     private ApplicationArea _currentArea = ApplicationArea.Dashboard;
     private Guid? _selectedVehicleId;
+    private Guid? _selectedEcuId;
     private bool _isLoadingVehicle;
+    private bool _isLoadingEcu;
 
     public MainWindow(
         IAppLogger logger,
         AppConfiguration configuration,
         ITextLocalizer localizer,
         VehicleService vehicleService,
+        EcuInfoService ecuInfoService,
         VehicleProfileCatalog vehicleProfileCatalog,
         ProgrammerCapabilityService programmerCapabilityService,
         EcuFileImportService ecuFileImportService,
@@ -46,6 +50,7 @@ public partial class MainWindow : Window
         _configuration = configuration;
         _localizer = localizer;
         _vehicleService = vehicleService;
+        _ecuInfoService = ecuInfoService;
         _vehicleProfileCatalog = vehicleProfileCatalog;
         _programmerCapabilityService = programmerCapabilityService;
         _ecuFileImportService = ecuFileImportService;
@@ -58,6 +63,8 @@ public partial class MainWindow : Window
         VehicleFuelSelector.ItemsSource = Enum.GetValues<FuelType>();
         VehicleFuelSelector.SelectedItem = FuelType.Unknown;
         VehicleProfileSelector.ItemsSource = BuildProfileOptions();
+        EcuSupportStatusSelector.ItemsSource = Enum.GetValues<SupportStatus>();
+        EcuSupportStatusSelector.SelectedItem = SupportStatus.Unknown;
         EcuFileTypeSelector.ItemsSource = Enum.GetValues<EcuFileType>();
         EcuFileTypeSelector.SelectedItem = EcuFileType.Unknown;
         EcuFileReadMethodTextBox.Text = "ManualWorkflowOnly";
@@ -90,12 +97,14 @@ public partial class MainWindow : Window
             : _localizer.Text("Status.FuturePhase");
         SectionBody.Text = BuildBody(section);
         var isVehicles = area == ApplicationArea.Vehicles;
+        var isEcus = area == ApplicationArea.Ecus;
         var isEcuFiles = area == ApplicationArea.EcuFiles;
         var isComparison = area == ApplicationArea.Comparison;
         var isReports = area == ApplicationArea.Reports;
         var isProgrammers = area == ApplicationArea.Programmers;
-        GenericPanel.Visibility = isVehicles || isEcuFiles || isComparison || isReports || isProgrammers ? Visibility.Collapsed : Visibility.Visible;
+        GenericPanel.Visibility = isVehicles || isEcus || isEcuFiles || isComparison || isReports || isProgrammers ? Visibility.Collapsed : Visibility.Visible;
         VehiclesPanel.Visibility = isVehicles ? Visibility.Visible : Visibility.Collapsed;
+        EcusPanel.Visibility = isEcus ? Visibility.Visible : Visibility.Collapsed;
         EcuFilesPanel.Visibility = isEcuFiles ? Visibility.Visible : Visibility.Collapsed;
         ComparisonPanel.Visibility = isComparison ? Visibility.Visible : Visibility.Collapsed;
         ReportsPanel.Visibility = isReports ? Visibility.Visible : Visibility.Collapsed;
@@ -104,6 +113,10 @@ public partial class MainWindow : Window
         if (isVehicles)
         {
             _ = LoadVehiclesAsync();
+        }
+        else if (isEcus)
+        {
+            _ = LoadEcuVehiclesAsync();
         }
         else if (isEcuFiles)
         {
@@ -175,6 +188,23 @@ public partial class MainWindow : Window
         VehicleFormTitle.Text = _selectedVehicleId is null
             ? _localizer.Text("Vehicles.FormTitle.New")
             : _localizer.Text("Vehicles.FormTitle.Edit");
+        EcuVehicleLabel.Text = _localizer.Text("Ecus.Vehicle");
+        EcusListTitle.Text = _localizer.Text("Ecus.ListTitle");
+        NewEcuButton.Content = _localizer.Text("Ecus.New");
+        SaveEcuButton.Content = _localizer.Text("Ecus.Save");
+        RefreshEcusButton.Content = _localizer.Text("Ecus.Refresh");
+        EcuManufacturerLabel.Text = _localizer.Text("Ecus.Manufacturer");
+        EcuFamilyLabel.Text = _localizer.Text("Ecus.Family");
+        EcuHardwareLabel.Text = _localizer.Text("Ecus.Hardware");
+        EcuSoftwareLabel.Text = _localizer.Text("Ecus.Software");
+        EcuSoftwareVersionLabel.Text = _localizer.Text("Ecus.SoftwareVersion");
+        EcuProtocolLabel.Text = _localizer.Text("Ecus.Protocol");
+        EcuSupportStatusLabel.Text = _localizer.Text("Ecus.SupportStatus");
+        EcuNotesLabel.Text = _localizer.Text("Ecus.Notes");
+        EcuManufacturerColumn.Header = _localizer.Text("Ecus.Manufacturer");
+        EcuFamilyColumn.Header = _localizer.Text("Ecus.Family");
+        EcuSupportStatusColumn.Header = _localizer.Text("Ecus.SupportStatus");
+        RefreshEcuConfidence();
         EcuFileVehicleLabel.Text = _localizer.Text("EcuFiles.Vehicle");
         EcuFileTypeLabel.Text = _localizer.Text("EcuFiles.FileType");
         EcuFileSourceLabel.Text = _localizer.Text("EcuFiles.SourceFile");
@@ -228,6 +258,10 @@ public partial class MainWindow : Window
         {
             LoadProgrammerCapabilities();
         }
+        else if (_currentArea == ApplicationArea.Ecus)
+        {
+            _ = LoadEcuVehiclesAsync();
+        }
         else if (_currentArea == ApplicationArea.Comparison)
         {
             _ = LoadComparisonResultsAsync();
@@ -236,6 +270,173 @@ public partial class MainWindow : Window
         {
             _ = LoadReportComparisonsAsync();
         }
+    }
+
+    private async Task LoadEcuVehiclesAsync()
+    {
+        try
+        {
+            var vehicles = await _vehicleService.ListAsync();
+            var selectedVehicleId = (EcuVehicleSelector.SelectedItem as VehicleSelectionItem)?.Id;
+            var items = vehicles
+                .Select(vehicle => new VehicleSelectionItem(
+                    vehicle.Id,
+                    $"{vehicle.Make} {vehicle.Model} {vehicle.EngineCode}".Trim()))
+                .ToArray();
+
+            EcuVehicleSelector.ItemsSource = items;
+            EcuVehicleSelector.SelectedItem = items.FirstOrDefault(item => item.Id == selectedVehicleId) ?? items.FirstOrDefault();
+            await LoadEcusForSelectedVehicleAsync();
+        }
+        catch (Exception exception)
+        {
+            _logger.Error("Failed to load ECU vehicles.", exception);
+            EcuMessage.Text = _localizer.Text("Ecus.LoadFailure");
+        }
+    }
+
+    private async Task LoadEcusForSelectedVehicleAsync()
+    {
+        if (EcuVehicleSelector.SelectedItem is not VehicleSelectionItem selectedVehicle)
+        {
+            EcusGrid.ItemsSource = Array.Empty<EcuListItem>();
+            StartNewEcu();
+            return;
+        }
+
+        var ecus = await _ecuInfoService.ListByVehicleAsync(selectedVehicle.Id);
+        EcusGrid.ItemsSource = ecus
+            .Select(ecu => new EcuListItem(
+                ecu.Id,
+                ecu.Manufacturer ?? "Unknown",
+                ecu.EcuFamily ?? "Unknown",
+                ecu.SupportStatus.ToString()))
+            .ToArray();
+
+        if (_selectedEcuId is null)
+        {
+            StartNewEcu();
+        }
+    }
+
+    private async void OnEcuVehicleChanged(object sender, SelectionChangedEventArgs e)
+    {
+        await LoadEcusForSelectedVehicleAsync();
+    }
+
+    private async void OnEcuSelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (_isLoadingEcu || EcusGrid.SelectedItem is not EcuListItem selectedEcu)
+        {
+            return;
+        }
+
+        var ecu = await _ecuInfoService.GetByIdAsync(selectedEcu.Id);
+        if (ecu is not null)
+        {
+            LoadEcuIntoForm(ecu);
+        }
+    }
+
+    private void OnNewEcuClick(object sender, RoutedEventArgs e) => StartNewEcu();
+
+    private async void OnRefreshEcusClick(object sender, RoutedEventArgs e) => await LoadEcuVehiclesAsync();
+
+    private async void OnSaveEcuClick(object sender, RoutedEventArgs e)
+    {
+        EcuMessage.Text = string.Empty;
+
+        if (EcuVehicleSelector.SelectedItem is not VehicleSelectionItem selectedVehicle)
+        {
+            EcuMessage.Text = _localizer.Text("Ecus.NoVehicle");
+            return;
+        }
+
+        var ecu = BuildEcuFromForm(selectedVehicle.Id);
+        var result = _selectedEcuId is null
+            ? await _ecuInfoService.CreateAsync(ecu)
+            : await _ecuInfoService.UpdateAsync(ecu);
+
+        EcuMessage.Text = result.IsSuccess
+            ? _localizer.Text("Ecus.SaveSuccess")
+            : $"{_localizer.Text("Ecus.SaveFailure")} {result.ErrorMessage}";
+
+        if (result.IsSuccess && result.Value is not null)
+        {
+            _selectedEcuId = result.Value.Id;
+            await LoadEcusForSelectedVehicleAsync();
+        }
+    }
+
+    private void OnEcuFieldChanged(object sender, RoutedEventArgs e)
+    {
+        if (!_isLoadingEcu)
+        {
+            RefreshEcuConfidence();
+        }
+    }
+
+    private void StartNewEcu()
+    {
+        _isLoadingEcu = true;
+        _selectedEcuId = null;
+        EcusGrid.SelectedItem = null;
+        EcuManufacturerTextBox.Text = string.Empty;
+        EcuFamilyTextBox.Text = string.Empty;
+        EcuHardwareTextBox.Text = string.Empty;
+        EcuSoftwareTextBox.Text = string.Empty;
+        EcuSoftwareVersionTextBox.Text = string.Empty;
+        EcuProtocolTextBox.Text = string.Empty;
+        EcuSupportStatusSelector.SelectedItem = SupportStatus.Unknown;
+        EcuNotesTextBox.Text = string.Empty;
+        EcuMessage.Text = string.Empty;
+        _isLoadingEcu = false;
+        RefreshEcuConfidence();
+    }
+
+    private void LoadEcuIntoForm(EcuInfo ecu)
+    {
+        _isLoadingEcu = true;
+        _selectedEcuId = ecu.Id;
+        EcuManufacturerTextBox.Text = ecu.Manufacturer;
+        EcuFamilyTextBox.Text = ecu.EcuFamily;
+        EcuHardwareTextBox.Text = ecu.HardwareReference;
+        EcuSoftwareTextBox.Text = ecu.SoftwareReference;
+        EcuSoftwareVersionTextBox.Text = ecu.SoftwareVersion;
+        EcuProtocolTextBox.Text = ecu.Protocol;
+        EcuSupportStatusSelector.SelectedItem = ecu.SupportStatus;
+        EcuNotesTextBox.Text = ecu.Notes;
+        EcuMessage.Text = string.Empty;
+        _isLoadingEcu = false;
+        RefreshEcuConfidence();
+    }
+
+    private EcuInfo BuildEcuFromForm(Guid vehicleId) =>
+        new()
+        {
+            Id = _selectedEcuId ?? Guid.NewGuid(),
+            VehicleId = vehicleId,
+            Manufacturer = EmptyToNull(EcuManufacturerTextBox.Text),
+            EcuFamily = EmptyToNull(EcuFamilyTextBox.Text),
+            HardwareReference = EmptyToNull(EcuHardwareTextBox.Text),
+            SoftwareReference = EmptyToNull(EcuSoftwareTextBox.Text),
+            SoftwareVersion = EmptyToNull(EcuSoftwareVersionTextBox.Text),
+            Protocol = EmptyToNull(EcuProtocolTextBox.Text),
+            SupportStatus = EcuSupportStatusSelector.SelectedItem is SupportStatus status ? status : SupportStatus.Unknown,
+            Notes = EmptyToNull(EcuNotesTextBox.Text)
+        };
+
+    private void RefreshEcuConfidence()
+    {
+        if (EcuConfidenceText is null)
+        {
+            return;
+        }
+
+        var ecu = BuildEcuFromForm(Guid.NewGuid());
+        var result = _ecuInfoService.EvaluateIdentification(ecu);
+        EcuConfidenceText.Text = $"{_localizer.Text("Ecus.Confidence")}: {result.Confidence}";
+        EcuMissingEvidenceText.Text = $"{_localizer.Text("Ecus.MissingEvidence")}: {string.Join(", ", result.MissingEvidence)}";
     }
 
     private async Task LoadReportComparisonsAsync()
@@ -711,6 +912,8 @@ public sealed record VehicleListItem(Guid Id, string Make, string Model, string 
 public sealed record VehicleProfileOption(string DisplayName, VehicleProfile? Profile);
 
 public sealed record VehicleSelectionItem(Guid Id, string DisplayName);
+
+public sealed record EcuListItem(Guid Id, string Manufacturer, string EcuFamily, string SupportStatus);
 
 public sealed record ProgrammerCapabilityListItem(
     string Name,

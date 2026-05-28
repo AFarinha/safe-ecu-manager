@@ -45,6 +45,8 @@ public partial class App : System.Windows.Application
         var ecuInfoRepository = new EcuInfoRepository(dbContextFactory);
         var ecuFileRepository = new EcuFileRepository(dbContextFactory);
         var vehicleService = new VehicleService(vehicleRepository, _logger);
+        var ecuIdentificationService = new EcuIdentificationService();
+        var ecuInfoService = new EcuInfoService(ecuInfoRepository, _logger, ecuIdentificationService);
         var ecuFileService = new EcuFileService(ecuFileRepository, _logger);
         var ecuFileValidationService = new EcuFileValidationService(ecuFileRepository);
         var ecuFileImportService = new EcuFileImportService(
@@ -64,6 +66,7 @@ public partial class App : System.Windows.Application
             configuration,
             localizer,
             vehicleService,
+            ecuInfoService,
             vehicleProfileCatalog,
             programmerCapabilityService,
             ecuFileImportService,

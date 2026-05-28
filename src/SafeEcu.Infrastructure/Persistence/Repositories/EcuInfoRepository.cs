@@ -20,6 +20,13 @@ public sealed class EcuInfoRepository : IEcuInfoRepository
         await dbContext.SaveChangesAsync(cancellationToken);
     }
 
+    public async Task UpdateAsync(EcuInfo ecuInfo, CancellationToken cancellationToken = default)
+    {
+        await using var dbContext = _dbContextFactory.Create();
+        dbContext.EcuInfos.Update(ecuInfo);
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
     public async Task<EcuInfo?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
         await using var dbContext = _dbContextFactory.Create();

@@ -240,6 +240,136 @@
                 </Border>
             </Grid>
 
+            <Grid x:Name="EcusPanel" Grid.Row="1" Visibility="Collapsed">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="2*" MinWidth="320" />
+                    <ColumnDefinition Width="24" />
+                    <ColumnDefinition Width="3*" MinWidth="440" />
+                </Grid.ColumnDefinitions>
+
+                <Border Grid.Column="0"
+                        Background="{StaticResource PanelBackgroundBrush}"
+                        BorderBrush="#D6DEE6"
+                        BorderThickness="1"
+                        CornerRadius="6"
+                        Padding="16">
+                    <DockPanel>
+                        <StackPanel DockPanel.Dock="Top" Margin="0,0,0,12">
+                            <TextBlock x:Name="EcuVehicleLabel" Foreground="{StaticResource MutedTextBrush}" />
+                            <ComboBox x:Name="EcuVehicleSelector"
+                                      DisplayMemberPath="DisplayName"
+                                      SelectionChanged="OnEcuVehicleChanged"
+                                      Margin="0,4,0,12" />
+                            <TextBlock x:Name="EcusListTitle"
+                                       Foreground="{StaticResource PrimaryTextBrush}"
+                                       FontSize="17"
+                                       FontWeight="SemiBold" />
+                        </StackPanel>
+
+                        <DataGrid x:Name="EcusGrid"
+                                  AutoGenerateColumns="False"
+                                  IsReadOnly="True"
+                                  SelectionMode="Single"
+                                  SelectionChanged="OnEcuSelectionChanged"
+                                  CanUserAddRows="False"
+                                  HeadersVisibility="Column"
+                                  GridLinesVisibility="Horizontal"
+                                  BorderThickness="0">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn x:Name="EcuManufacturerColumn" Binding="{Binding Manufacturer}" Width="*" />
+                                <DataGridTextColumn x:Name="EcuFamilyColumn" Binding="{Binding EcuFamily}" Width="*" />
+                                <DataGridTextColumn x:Name="EcuSupportStatusColumn" Binding="{Binding SupportStatus}" Width="*" />
+                            </DataGrid.Columns>
+                        </DataGrid>
+                    </DockPanel>
+                </Border>
+
+                <Border Grid.Column="2"
+                        Background="{StaticResource PanelBackgroundBrush}"
+                        BorderBrush="#D6DEE6"
+                        BorderThickness="1"
+                        CornerRadius="6"
+                        Padding="16">
+                    <ScrollViewer VerticalScrollBarVisibility="Auto">
+                        <StackPanel>
+                            <DockPanel Margin="0,0,0,14">
+                                <TextBlock x:Name="EcuConfidenceText"
+                                           DockPanel.Dock="Left"
+                                           Foreground="{StaticResource PrimaryTextBrush}"
+                                           FontSize="17"
+                                           FontWeight="SemiBold" />
+                                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" HorizontalAlignment="Right">
+                                    <Button x:Name="NewEcuButton"
+                                            Click="OnNewEcuClick"
+                                            Padding="14,8"
+                                            Margin="0,0,8,0" />
+                                    <Button x:Name="RefreshEcusButton"
+                                            Click="OnRefreshEcusClick"
+                                            Padding="14,8"
+                                            Margin="0,0,8,0" />
+                                    <Button x:Name="SaveEcuButton"
+                                            Click="OnSaveEcuClick"
+                                            Padding="14,8"
+                                            Background="{StaticResource AccentBrush}"
+                                            Foreground="White" />
+                                </StackPanel>
+                            </DockPanel>
+
+                            <TextBlock x:Name="EcuMessage"
+                                       Foreground="#7A3E00"
+                                       FontSize="13"
+                                       Margin="0,0,0,12"
+                                       TextWrapping="Wrap" />
+
+                            <UniformGrid Columns="2">
+                                <StackPanel Margin="0,0,10,12">
+                                    <TextBlock x:Name="EcuManufacturerLabel" Foreground="{StaticResource MutedTextBrush}" />
+                                    <TextBox x:Name="EcuManufacturerTextBox" TextChanged="OnEcuFieldChanged" Margin="0,4,0,0" />
+                                </StackPanel>
+                                <StackPanel Margin="10,0,0,12">
+                                    <TextBlock x:Name="EcuFamilyLabel" Foreground="{StaticResource MutedTextBrush}" />
+                                    <TextBox x:Name="EcuFamilyTextBox" TextChanged="OnEcuFieldChanged" Margin="0,4,0,0" />
+                                </StackPanel>
+                                <StackPanel Margin="0,0,10,12">
+                                    <TextBlock x:Name="EcuHardwareLabel" Foreground="{StaticResource MutedTextBrush}" />
+                                    <TextBox x:Name="EcuHardwareTextBox" TextChanged="OnEcuFieldChanged" Margin="0,4,0,0" />
+                                </StackPanel>
+                                <StackPanel Margin="10,0,0,12">
+                                    <TextBlock x:Name="EcuSoftwareLabel" Foreground="{StaticResource MutedTextBrush}" />
+                                    <TextBox x:Name="EcuSoftwareTextBox" TextChanged="OnEcuFieldChanged" Margin="0,4,0,0" />
+                                </StackPanel>
+                                <StackPanel Margin="0,0,10,12">
+                                    <TextBlock x:Name="EcuSoftwareVersionLabel" Foreground="{StaticResource MutedTextBrush}" />
+                                    <TextBox x:Name="EcuSoftwareVersionTextBox" TextChanged="OnEcuFieldChanged" Margin="0,4,0,0" />
+                                </StackPanel>
+                                <StackPanel Margin="10,0,0,12">
+                                    <TextBlock x:Name="EcuProtocolLabel" Foreground="{StaticResource MutedTextBrush}" />
+                                    <TextBox x:Name="EcuProtocolTextBox" TextChanged="OnEcuFieldChanged" Margin="0,4,0,0" />
+                                </StackPanel>
+                            </UniformGrid>
+
+                            <TextBlock x:Name="EcuSupportStatusLabel" Foreground="{StaticResource MutedTextBrush}" />
+                            <ComboBox x:Name="EcuSupportStatusSelector"
+                                      Margin="0,4,0,12"
+                                      SelectionChanged="OnEcuFieldChanged" />
+
+                            <TextBlock x:Name="EcuNotesLabel" Foreground="{StaticResource MutedTextBrush}" />
+                            <TextBox x:Name="EcuNotesTextBox"
+                                     MinHeight="92"
+                                     TextWrapping="Wrap"
+                                     AcceptsReturn="True"
+                                     TextChanged="OnEcuFieldChanged"
+                                     VerticalScrollBarVisibility="Auto"
+                                     Margin="0,4,0,12" />
+
+                            <TextBlock x:Name="EcuMissingEvidenceText"
+                                       Foreground="{StaticResource MutedTextBrush}"
+                                       TextWrapping="Wrap" />
+                        </StackPanel>
+                    </ScrollViewer>
+                </Border>
+            </Grid>
+
             <Grid x:Name="EcuFilesPanel" Grid.Row="1" Visibility="Collapsed">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto" />
