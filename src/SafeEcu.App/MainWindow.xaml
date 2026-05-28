@@ -502,6 +502,47 @@
                 </Border>
             </Grid>
 
+            <Border x:Name="ReportsPanel"
+                    Grid.Row="1"
+                    Background="{StaticResource PanelBackgroundBrush}"
+                    BorderBrush="#D6DEE6"
+                    BorderThickness="1"
+                    CornerRadius="6"
+                    Padding="16"
+                    Visibility="Collapsed">
+                <StackPanel>
+                    <TextBlock x:Name="ReportComparisonLabel" Foreground="{StaticResource MutedTextBrush}" />
+                    <ComboBox x:Name="ReportComparisonSelector"
+                              DisplayMemberPath="DisplayName"
+                              Margin="0,4,0,14" />
+
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Left" Margin="0,0,0,14">
+                        <Button x:Name="RefreshReportsButton"
+                                Click="OnRefreshReportsClick"
+                                Padding="14,8"
+                                Margin="0,0,8,0" />
+                        <Button x:Name="GenerateReportButton"
+                                Click="OnGenerateReportClick"
+                                Padding="14,8"
+                                Background="{StaticResource AccentBrush}"
+                                Foreground="White" />
+                    </StackPanel>
+
+                    <TextBlock x:Name="ReportOutputLabel"
+                               Foreground="{StaticResource MutedTextBrush}"
+                               Margin="0,0,0,4" />
+                    <TextBox x:Name="ReportOutputTextBox"
+                             IsReadOnly="True"
+                             TextWrapping="Wrap"
+                             MinHeight="90" />
+                    <TextBlock x:Name="ReportMessage"
+                               Foreground="#7A3E00"
+                               FontSize="13"
+                               Margin="0,12,0,0"
+                               TextWrapping="Wrap" />
+                </StackPanel>
+            </Border>
+
             <TextBlock x:Name="SafeModeFooter"
                        Grid.Row="2"
                        Foreground="#7A3E00"

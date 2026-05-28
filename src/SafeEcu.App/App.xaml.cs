@@ -9,6 +9,7 @@ using SafeEcu.Infrastructure.Files;
 using SafeEcu.Infrastructure.Logging;
 using SafeEcu.Infrastructure.Persistence;
 using SafeEcu.Infrastructure.Persistence.Repositories;
+using SafeEcu.Infrastructure.Reports;
 using SafeEcu.Programmers;
 
 namespace SafeEcu.App;
@@ -54,6 +55,7 @@ public partial class App : System.Windows.Application
             _logger);
         var comparisonRepository = new CalibrationComparisonRepository(dbContextFactory);
         var binaryComparisonService = new BinaryComparisonService(ecuFileRepository, comparisonRepository, _logger);
+        var reportService = new HtmlTechnicalReportService(dbContextFactory, _logger);
         var vehicleProfileCatalog = new VehicleProfileCatalog();
         var programmerCapabilityService = new ProgrammerCapabilityService(ProgrammerAdapterCatalog.CreateDefaultAdapters());
 
@@ -66,7 +68,8 @@ public partial class App : System.Windows.Application
             programmerCapabilityService,
             ecuFileImportService,
             ecuFileService,
-            binaryComparisonService);
+            binaryComparisonService,
+            reportService);
         mainWindow.Show();
     }
 

@@ -7,6 +7,7 @@ using SafeEcu.Application.Common;
 using SafeEcu.Application.Localization;
 using SafeEcu.Application.Navigation;
 using SafeEcu.Application.Programmers;
+using SafeEcu.Application.Reports;
 using SafeEcu.Application.Vehicles;
 using SafeEcu.Domain.Application;
 using SafeEcu.Domain.Vehicles;
@@ -24,6 +25,7 @@ public partial class MainWindow : Window
     private readonly EcuFileImportService _ecuFileImportService;
     private readonly EcuFileService _ecuFileService;
     private readonly BinaryComparisonService _binaryComparisonService;
+    private readonly IReportService _reportService;
     private ApplicationArea _currentArea = ApplicationArea.Dashboard;
     private Guid? _selectedVehicleId;
     private bool _isLoadingVehicle;
@@ -37,7 +39,8 @@ public partial class MainWindow : Window
         ProgrammerCapabilityService programmerCapabilityService,
         EcuFileImportService ecuFileImportService,
         EcuFileService ecuFileService,
-        BinaryComparisonService binaryComparisonService)
+        BinaryComparisonService binaryComparisonService,
+        IReportService reportService)
     {
         _logger = logger;
         _configuration = configuration;
@@ -48,6 +51,7 @@ public partial class MainWindow : Window
         _ecuFileImportService = ecuFileImportService;
         _ecuFileService = ecuFileService;
         _binaryComparisonService = binaryComparisonService;
+        _reportService = reportService;
 
         InitializeComponent();
 
@@ -88,11 +92,13 @@ public partial class MainWindow : Window
         var isVehicles = area == ApplicationArea.Vehicles;
         var isEcuFiles = area == ApplicationArea.EcuFiles;
         var isComparison = area == ApplicationArea.Comparison;
+        var isReports = area == ApplicationArea.Reports;
         var isProgrammers = area == ApplicationArea.Programmers;
-        GenericPanel.Visibility = isVehicles || isEcuFiles || isComparison || isProgrammers ? Visibility.Collapsed : Visibility.Visible;
+        GenericPanel.Visibility = isVehicles || isEcuFiles || isComparison || isReports || isProgrammers ? Visibility.Collapsed : Visibility.Visible;
         VehiclesPanel.Visibility = isVehicles ? Visibility.Visible : Visibility.Collapsed;
         EcuFilesPanel.Visibility = isEcuFiles ? Visibility.Visible : Visibility.Collapsed;
         ComparisonPanel.Visibility = isComparison ? Visibility.Visible : Visibility.Collapsed;
+        ReportsPanel.Visibility = isReports ? Visibility.Visible : Visibility.Collapsed;
         ProgrammersPanel.Visibility = isProgrammers ? Visibility.Visible : Visibility.Collapsed;
 
         if (isVehicles)
@@ -106,6 +112,10 @@ public partial class MainWindow : Window
         else if (isComparison)
         {
             _ = LoadComparisonVehiclesAsync();
+        }
+        else if (isReports)
+        {
+            _ = LoadReportComparisonsAsync();
         }
         else if (isProgrammers)
         {
@@ -202,6 +212,10 @@ public partial class MainWindow : Window
         ComparisonPercentColumn.Header = _localizer.Text("Comparison.PercentChanged");
         ComparisonResultColumn.Header = _localizer.Text("Comparison.Result");
         ComparisonComparedAtColumn.Header = _localizer.Text("Comparison.ComparedAt");
+        ReportComparisonLabel.Text = _localizer.Text("Reports.Comparison");
+        RefreshReportsButton.Content = _localizer.Text("Reports.Refresh");
+        GenerateReportButton.Content = _localizer.Text("Reports.Generate");
+        ReportOutputLabel.Text = _localizer.Text("Reports.Output");
         NavigationItems.ItemsSource = NavigationCatalog.Sections
             .Select(section => new
             {
@@ -218,6 +232,56 @@ public partial class MainWindow : Window
         {
             _ = LoadComparisonResultsAsync();
         }
+        else if (_currentArea == ApplicationArea.Reports)
+        {
+            _ = LoadReportComparisonsAsync();
+        }
+    }
+
+    private async Task LoadReportComparisonsAsync()
+    {
+        try
+        {
+            var comparisons = await _binaryComparisonService.ListAsync();
+            var selectedId = (ReportComparisonSelector.SelectedItem as ReportComparisonSelectionItem)?.Id;
+            var items = comparisons
+                .Select(comparison => new ReportComparisonSelectionItem(
+                    comparison.Id,
+                    $"{comparison.ComparedAt.LocalDateTime:yyyy-MM-dd HH:mm} - {comparison.Result} - {comparison.PercentChanged:0.######}%"))
+                .ToArray();
+
+            ReportComparisonSelector.ItemsSource = items;
+            ReportComparisonSelector.SelectedItem = items.FirstOrDefault(item => item.Id == selectedId) ?? items.FirstOrDefault();
+        }
+        catch (Exception exception)
+        {
+            _logger.Error("Failed to load report comparisons.", exception);
+            ReportMessage.Text = _localizer.Text("Reports.LoadFailure");
+        }
+    }
+
+    private async void OnRefreshReportsClick(object sender, RoutedEventArgs e)
+    {
+        await LoadReportComparisonsAsync();
+    }
+
+    private async void OnGenerateReportClick(object sender, RoutedEventArgs e)
+    {
+        ReportMessage.Text = string.Empty;
+        ReportOutputTextBox.Text = string.Empty;
+
+        if (ReportComparisonSelector.SelectedItem is not ReportComparisonSelectionItem selectedComparison)
+        {
+            ReportMessage.Text = _localizer.Text("Reports.NoComparison");
+            return;
+        }
+
+        var result = await _reportService.GenerateTechnicalReportAsync(
+            new TechnicalReportRequest(selectedComparison.Id, _configuration.ReportsDirectory));
+        ReportMessage.Text = result.IsSuccess
+            ? _localizer.Text("Reports.Success")
+            : $"{_localizer.Text("Reports.Failure")} {result.ErrorMessage}";
+        ReportOutputTextBox.Text = result.Value ?? string.Empty;
     }
 
     private async Task LoadComparisonVehiclesAsync()
@@ -674,3 +738,5 @@ public sealed record ComparisonListItem(
     string PercentChanged,
     string Result,
     string ComparedAt);
+
+public sealed record ReportComparisonSelectionItem(Guid Id, string DisplayName);
