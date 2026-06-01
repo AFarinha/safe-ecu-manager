@@ -16,6 +16,7 @@ public sealed class NavigationCatalogTests
         Assert.Contains(ApplicationArea.EcuFiles, areas);
         Assert.Contains(ApplicationArea.Programmers, areas);
         Assert.Contains(ApplicationArea.Comparison, areas);
+        Assert.Contains(ApplicationArea.CalibrationPreview, areas);
         Assert.Contains(ApplicationArea.Reports, areas);
         Assert.Contains(ApplicationArea.Audit, areas);
         Assert.Contains(ApplicationArea.Settings, areas);

@@ -8,6 +8,7 @@ public enum ApplicationArea
     EcuFiles,
     Programmers,
     Comparison,
+    CalibrationPreview,
     Reports,
     Audit,
     Settings

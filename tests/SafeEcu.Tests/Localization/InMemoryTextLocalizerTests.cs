@@ -11,6 +11,7 @@ public sealed class InMemoryTextLocalizerTests
 
         Assert.Equal("en", localizer.CurrentLanguageCode);
         Assert.Equal("Vehicles", localizer.Text("Nav.Vehicles.Title"));
+        Assert.Contains("blocked", localizer.Text("CalibrationPreview.SafeBody"), StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]

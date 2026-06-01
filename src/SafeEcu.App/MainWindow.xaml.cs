@@ -145,6 +145,11 @@ public partial class MainWindow : Window
             return _localizer.Text("Dashboard.Body");
         }
 
+        if (section.Area == ApplicationArea.CalibrationPreview)
+        {
+            return _localizer.Text("CalibrationPreview.SafeBody");
+        }
+
         return _localizer.Text("Section.FutureBody");
     }
 
