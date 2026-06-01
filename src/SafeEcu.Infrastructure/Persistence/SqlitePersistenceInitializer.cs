@@ -23,6 +23,7 @@ public sealed class SqlitePersistenceInitializer : IPersistenceInitializer
             await dbContext.Database.EnsureCreatedAsync(cancellationToken);
             await EnsureCalibrationComparisonTableAsync(dbContext, cancellationToken);
             await EnsureAuditLogTableAsync(dbContext, cancellationToken);
+            await EnsureSafetyLimitTableAsync(dbContext, cancellationToken);
             _logger.Information("SQLite database initialized.");
 
             return OperationResult.Success();
@@ -76,6 +77,35 @@ public sealed class SqlitePersistenceInitializer : IPersistenceInitializer
             CREATE INDEX IF NOT EXISTS "IX_AuditLogEntries_Timestamp" ON "AuditLogEntries" ("Timestamp");
             CREATE INDEX IF NOT EXISTS "IX_AuditLogEntries_CorrelationId" ON "AuditLogEntries" ("CorrelationId");
             CREATE INDEX IF NOT EXISTS "IX_AuditLogEntries_EntityType_EntityId" ON "AuditLogEntries" ("EntityType", "EntityId");
+            """,
+            cancellationToken);
+
+    private static Task EnsureSafetyLimitTableAsync(
+        SafeEcuDbContext dbContext,
+        CancellationToken cancellationToken) =>
+        dbContext.Database.ExecuteSqlRawAsync(
+            """
+            CREATE TABLE IF NOT EXISTS "SafetyLimits" (
+                "Id" TEXT NOT NULL CONSTRAINT "PK_SafetyLimits" PRIMARY KEY,
+                "EcuFamily" TEXT NOT NULL,
+                "SoftwareVersion" TEXT NOT NULL,
+                "EngineCode" TEXT NOT NULL,
+                "ProfileId" TEXT NOT NULL,
+                "MapId" TEXT NOT NULL,
+                "ParameterName" TEXT NOT NULL,
+                "MinValue" TEXT NOT NULL,
+                "MaxValue" TEXT NOT NULL,
+                "Unit" TEXT NOT NULL,
+                "Severity" TEXT NOT NULL,
+                "Reason" TEXT NOT NULL,
+                "SafetyStatus" TEXT NOT NULL,
+                "Source" TEXT NOT NULL,
+                "Notes" TEXT NOT NULL,
+                "CreatedAt" TEXT NOT NULL,
+                "UpdatedAt" TEXT NOT NULL
+            );
+            CREATE INDEX IF NOT EXISTS "IX_SafetyLimits_ProfileId" ON "SafetyLimits" ("ProfileId");
+            CREATE INDEX IF NOT EXISTS "IX_SafetyLimits_ProfileId_ParameterName" ON "SafetyLimits" ("ProfileId", "ParameterName");
             """,
             cancellationToken);
 }

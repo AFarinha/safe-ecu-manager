@@ -22,6 +22,8 @@ public sealed class SafeEcuDbContext : DbContext
 
     public DbSet<AuditLogEntry> AuditLogEntries => Set<AuditLogEntry>();
 
+    public DbSet<SafetyLimit> SafetyLimits => Set<SafetyLimit>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         ConfigureVehicle(modelBuilder);
@@ -29,6 +31,7 @@ public sealed class SafeEcuDbContext : DbContext
         ConfigureEcuFile(modelBuilder);
         ConfigureCalibrationComparison(modelBuilder);
         ConfigureAuditLogEntry(modelBuilder);
+        ConfigureSafetyLimit(modelBuilder);
     }
 
     private static void ConfigureVehicle(ModelBuilder modelBuilder)
@@ -141,5 +144,29 @@ public sealed class SafeEcuDbContext : DbContext
         entity.HasIndex(entry => entry.Timestamp);
         entity.HasIndex(entry => entry.CorrelationId);
         entity.HasIndex(entry => new { entry.EntityType, entry.EntityId });
+    }
+
+    private static void ConfigureSafetyLimit(ModelBuilder modelBuilder)
+    {
+        var entity = modelBuilder.Entity<SafetyLimit>();
+
+        entity.HasKey(limit => limit.Id);
+        entity.Property(limit => limit.EcuFamily).HasMaxLength(120);
+        entity.Property(limit => limit.SoftwareVersion).HasMaxLength(120);
+        entity.Property(limit => limit.EngineCode).HasMaxLength(80);
+        entity.Property(limit => limit.ProfileId).HasMaxLength(160);
+        entity.Property(limit => limit.MapId).HasMaxLength(160);
+        entity.Property(limit => limit.ParameterName).HasMaxLength(160).IsRequired();
+        entity.Property(limit => limit.Unit).HasMaxLength(40);
+        entity.Property(limit => limit.Severity).HasMaxLength(40);
+        entity.Property(limit => limit.Reason).HasMaxLength(1000);
+        entity.Property(limit => limit.SafetyStatus).HasMaxLength(80);
+        entity.Property(limit => limit.Source).HasMaxLength(500);
+        entity.Property(limit => limit.Notes).HasMaxLength(2000);
+        entity.Property(limit => limit.MinValue).HasColumnType("decimal(18,6)");
+        entity.Property(limit => limit.MaxValue).HasColumnType("decimal(18,6)");
+
+        entity.HasIndex(limit => limit.ProfileId);
+        entity.HasIndex(limit => new { limit.ProfileId, limit.ParameterName });
     }
 }

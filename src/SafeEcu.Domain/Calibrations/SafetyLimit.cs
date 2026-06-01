@@ -10,6 +10,10 @@ public sealed class SafetyLimit
 
     public string EngineCode { get; set; } = string.Empty;
 
+    public string ProfileId { get; set; } = string.Empty;
+
+    public string MapId { get; set; } = string.Empty;
+
     public string ParameterName { get; set; } = string.Empty;
 
     public decimal MinValue { get; set; }
