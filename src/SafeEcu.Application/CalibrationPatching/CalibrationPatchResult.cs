@@ -5,4 +5,5 @@ public sealed record CalibrationPatchResult(
     CalibrationPatchStatus Status,
     CalibrationChangeSet ChangeSet,
     IReadOnlyList<string> Messages,
-    IReadOnlyList<string> BlockReasons);
+    IReadOnlyList<string> BlockReasons,
+    IReadOnlyList<CalibrationPatchPreviewItem>? PreviewItems = null);

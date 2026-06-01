@@ -24,6 +24,7 @@ public sealed class CalibrationPatchPreviewService
     {
         var blockReasons = _validationService.Validate(request).ToList();
         var values = new List<CalibrationMapValue>();
+        var previewItems = new List<CalibrationPatchPreviewItem>();
         var definitionsById = request.MapDefinitions.ToDictionary(
             definition => definition.MapId,
             StringComparer.OrdinalIgnoreCase);
@@ -48,6 +49,15 @@ public sealed class CalibrationPatchPreviewService
             }
 
             values.Add(value);
+            previewItems.Add(new CalibrationPatchPreviewItem(
+                definition.MapId,
+                definition.DisplayName,
+                definition.ParameterName,
+                value.Offset,
+                value.CurrentValue,
+                value.ProposedValue,
+                definition.RequiredMapIds,
+                change.Reason));
         }
 
         var isAllowed = blockReasons.Count == 0;
@@ -58,7 +68,8 @@ public sealed class CalibrationPatchPreviewService
             isAllowed
                 ? ["Patch preview completed. No modified ECU file was created."]
                 : [],
-            blockReasons);
+            blockReasons,
+            previewItems);
 
         await _auditLogService.RecordAsync(new AuditLogRequest(
             "CalibrationPatch.Preview",
