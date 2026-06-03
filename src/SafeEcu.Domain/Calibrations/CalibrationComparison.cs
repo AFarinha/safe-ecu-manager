@@ -20,5 +20,9 @@ public sealed class CalibrationComparison
 
     public string Result { get; set; } = string.Empty;
 
+    public string DifferenceSummary { get; set; } = string.Empty;
+
+    public string DifferenceBlockSummary { get; set; } = string.Empty;
+
     public DateTimeOffset ComparedAt { get; set; } = DateTimeOffset.UtcNow;
 }

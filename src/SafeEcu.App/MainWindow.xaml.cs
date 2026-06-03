@@ -245,6 +245,8 @@ public partial class MainWindow : Window
         ComparisonModifiedColumn.Header = _localizer.Text("Comparison.ModifiedFile");
         ComparisonDifferencesColumn.Header = _localizer.Text("Comparison.Differences");
         ComparisonPercentColumn.Header = _localizer.Text("Comparison.PercentChanged");
+        ComparisonOffsetsColumn.Header = _localizer.Text("Comparison.Offsets");
+        ComparisonBlocksColumn.Header = _localizer.Text("Comparison.Blocks");
         ComparisonResultColumn.Header = _localizer.Text("Comparison.Result");
         ComparisonComparedAtColumn.Header = _localizer.Text("Comparison.ComparedAt");
         ReportComparisonLabel.Text = _localizer.Text("Reports.Comparison");
@@ -549,6 +551,8 @@ public partial class MainWindow : Window
                 comparison.ModifiedFileId.ToString("N")[..12],
                 comparison.DifferenceCount,
                 $"{comparison.PercentChanged:0.######}%",
+                comparison.DifferenceSummary,
+                comparison.DifferenceBlockSummary,
                 comparison.Result,
                 comparison.ComparedAt.LocalDateTime.ToString("yyyy-MM-dd HH:mm")))
             .ToArray();
@@ -944,6 +948,8 @@ public sealed record ComparisonListItem(
     string ModifiedFileId,
     long DifferenceCount,
     string PercentChanged,
+    string DifferenceSummary,
+    string DifferenceBlockSummary,
     string Result,
     string ComparedAt);
 

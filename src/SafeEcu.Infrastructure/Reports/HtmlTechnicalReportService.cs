@@ -122,6 +122,8 @@ public sealed class HtmlTechnicalReportService : IReportService
         AddRow(builder, "Result", comparison.Result);
         AddRow(builder, "Differences", comparison.DifferenceCount.ToString());
         AddRow(builder, "Percent changed", $"{comparison.PercentChanged:0.######}%");
+        AddRow(builder, "Changed offsets sample", comparison.DifferenceSummary);
+        AddRow(builder, "Changed blocks sample", comparison.DifferenceBlockSummary);
         AddRow(builder, "Compared at", comparison.ComparedAt.ToString("yyyy-MM-dd HH:mm:ss zzz"));
         builder.AppendLine("</table>");
 

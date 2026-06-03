@@ -109,6 +109,8 @@ public sealed class SafeEcuDbContext : DbContext
 
         entity.HasKey(comparison => comparison.Id);
         entity.Property(comparison => comparison.Result).HasMaxLength(80).IsRequired();
+        entity.Property(comparison => comparison.DifferenceSummary).HasMaxLength(4000);
+        entity.Property(comparison => comparison.DifferenceBlockSummary).HasMaxLength(4000);
         entity.Property(comparison => comparison.PercentChanged).HasColumnType("decimal(18,6)");
 
         entity

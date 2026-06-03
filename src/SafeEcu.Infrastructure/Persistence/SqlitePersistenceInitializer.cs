@@ -22,6 +22,7 @@ public sealed class SqlitePersistenceInitializer : IPersistenceInitializer
             await using var dbContext = _dbContextFactory.Create();
             await dbContext.Database.EnsureCreatedAsync(cancellationToken);
             await EnsureCalibrationComparisonTableAsync(dbContext, cancellationToken);
+            await EnsureCalibrationComparisonColumnsAsync(dbContext, cancellationToken);
             await EnsureAuditLogTableAsync(dbContext, cancellationToken);
             await EnsureSafetyLimitTableAsync(dbContext, cancellationToken);
             _logger.Information("SQLite database initialized.");
@@ -47,6 +48,8 @@ public sealed class SqlitePersistenceInitializer : IPersistenceInitializer
                 "DifferenceCount" INTEGER NOT NULL,
                 "PercentChanged" TEXT NOT NULL,
                 "Result" TEXT NOT NULL,
+                "DifferenceSummary" TEXT NOT NULL DEFAULT '',
+                "DifferenceBlockSummary" TEXT NOT NULL DEFAULT '',
                 "ComparedAt" TEXT NOT NULL,
                 CONSTRAINT "FK_CalibrationComparisons_EcuFiles_OriginalFileId" FOREIGN KEY ("OriginalFileId") REFERENCES "EcuFiles" ("Id") ON DELETE RESTRICT,
                 CONSTRAINT "FK_CalibrationComparisons_EcuFiles_ModifiedFileId" FOREIGN KEY ("ModifiedFileId") REFERENCES "EcuFiles" ("Id") ON DELETE RESTRICT
@@ -56,6 +59,51 @@ public sealed class SqlitePersistenceInitializer : IPersistenceInitializer
             CREATE INDEX IF NOT EXISTS "IX_CalibrationComparisons_ComparedAt" ON "CalibrationComparisons" ("ComparedAt");
             """,
             cancellationToken);
+
+    private static async Task EnsureCalibrationComparisonColumnsAsync(
+        SafeEcuDbContext dbContext,
+        CancellationToken cancellationToken)
+    {
+        await EnsureColumnAsync(
+            dbContext,
+            "CalibrationComparisons",
+            "DifferenceSummary",
+            """ALTER TABLE "CalibrationComparisons" ADD COLUMN "DifferenceSummary" TEXT NOT NULL DEFAULT ''""",
+            cancellationToken);
+        await EnsureColumnAsync(
+            dbContext,
+            "CalibrationComparisons",
+            "DifferenceBlockSummary",
+            """ALTER TABLE "CalibrationComparisons" ADD COLUMN "DifferenceBlockSummary" TEXT NOT NULL DEFAULT ''""",
+            cancellationToken);
+    }
+
+    private static async Task EnsureColumnAsync(
+        SafeEcuDbContext dbContext,
+        string tableName,
+        string columnName,
+        string alterSql,
+        CancellationToken cancellationToken)
+    {
+        var connection = dbContext.Database.GetDbConnection();
+        if (connection.State != System.Data.ConnectionState.Open)
+        {
+            await connection.OpenAsync(cancellationToken);
+        }
+
+        await using var command = connection.CreateCommand();
+        command.CommandText = $"PRAGMA table_info(\"{tableName}\")";
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        while (await reader.ReadAsync(cancellationToken))
+        {
+            if (string.Equals(reader.GetString(1), columnName, StringComparison.OrdinalIgnoreCase))
+            {
+                return;
+            }
+        }
+
+        await dbContext.Database.ExecuteSqlRawAsync(alterSql, cancellationToken);
+    }
 
     private static Task EnsureAuditLogTableAsync(
         SafeEcuDbContext dbContext,

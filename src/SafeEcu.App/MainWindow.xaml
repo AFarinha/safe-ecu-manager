@@ -624,6 +624,8 @@
                                 <DataGridTextColumn x:Name="ComparisonModifiedColumn" Binding="{Binding ModifiedFileId}" Width="2*" />
                                 <DataGridTextColumn x:Name="ComparisonDifferencesColumn" Binding="{Binding DifferenceCount}" Width="*" />
                                 <DataGridTextColumn x:Name="ComparisonPercentColumn" Binding="{Binding PercentChanged}" Width="*" />
+                                <DataGridTextColumn x:Name="ComparisonOffsetsColumn" Binding="{Binding DifferenceSummary}" Width="4*" />
+                                <DataGridTextColumn x:Name="ComparisonBlocksColumn" Binding="{Binding DifferenceBlockSummary}" Width="3*" />
                                 <DataGridTextColumn x:Name="ComparisonResultColumn" Binding="{Binding Result}" Width="*" />
                                 <DataGridTextColumn x:Name="ComparisonComparedAtColumn" Binding="{Binding ComparedAt}" Width="2*" />
                             </DataGrid.Columns>

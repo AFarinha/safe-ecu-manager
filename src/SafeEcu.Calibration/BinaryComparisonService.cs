@@ -3,6 +3,8 @@ using SafeEcu.Application.Common;
 using SafeEcu.Application.Persistence;
 using SafeEcu.Domain.Calibrations;
 using SafeEcu.Domain.Vehicles;
+using System.Globalization;
+using System.Text;
 
 namespace SafeEcu.Calibration;
 
@@ -11,15 +13,18 @@ public sealed class BinaryComparisonService
     private readonly IEcuFileRepository _ecuFileRepository;
     private readonly ICalibrationComparisonRepository _comparisonRepository;
     private readonly IAppLogger _logger;
+    private readonly AdvancedBinaryDifferenceService _differenceService;
 
     public BinaryComparisonService(
         IEcuFileRepository ecuFileRepository,
         ICalibrationComparisonRepository comparisonRepository,
-        IAppLogger logger)
+        IAppLogger logger,
+        AdvancedBinaryDifferenceService? differenceService = null)
     {
         _ecuFileRepository = ecuFileRepository;
         _comparisonRepository = comparisonRepository;
         _logger = logger;
+        _differenceService = differenceService ?? new AdvancedBinaryDifferenceService();
     }
 
     public async Task<OperationResult<CalibrationComparison>> CompareAsync(
@@ -43,19 +48,21 @@ public sealed class BinaryComparisonService
         var originalFile = original!;
         var modifiedFile = modified!;
 
-        var differenceCount = await CountDifferencesAsync(originalFile.FilePath, modifiedFile.FilePath, cancellationToken);
-        var comparedLength = Math.Max(originalFile.SizeBytes, modifiedFile.SizeBytes);
-        var percentChanged = comparedLength == 0
-            ? 0
-            : decimal.Round(differenceCount * 100m / comparedLength, 6);
+        var scanResult = await _differenceService.ScanAsync(
+            originalFile.FilePath,
+            modifiedFile.FilePath,
+            BinaryDifferenceScanOptions.Default,
+            cancellationToken);
 
         var comparison = new CalibrationComparison
         {
             OriginalFileId = originalFile.Id,
             ModifiedFileId = modifiedFile.Id,
-            DifferenceCount = differenceCount,
-            PercentChanged = percentChanged,
-            Result = differenceCount == 0 ? "Identical" : "Different",
+            DifferenceCount = scanResult.DifferenceCount,
+            PercentChanged = scanResult.PercentChanged,
+            Result = scanResult.DifferenceCount == 0 ? "Identical" : "Different",
+            DifferenceSummary = BuildDifferenceSummary(scanResult),
+            DifferenceBlockSummary = BuildBlockSummary(scanResult),
             ComparedAt = DateTimeOffset.UtcNow
         };
 
@@ -118,43 +125,71 @@ public sealed class BinaryComparisonService
         return OperationResult.Success();
     }
 
-    private static async Task<long> CountDifferencesAsync(
-        string originalFilePath,
-        string modifiedFilePath,
-        CancellationToken cancellationToken)
+    private static string BuildDifferenceSummary(BinaryDifferenceScanResult scanResult)
     {
-        const int bufferSize = 81920;
-        var differences = 0L;
-
-        await using var originalStream = File.OpenRead(originalFilePath);
-        await using var modifiedStream = File.OpenRead(modifiedFilePath);
-
-        var originalBuffer = new byte[bufferSize];
-        var modifiedBuffer = new byte[bufferSize];
-
-        while (true)
+        if (scanResult.SampledDifferences.Count == 0)
         {
-            var originalRead = await originalStream.ReadAsync(originalBuffer, cancellationToken);
-            var modifiedRead = await modifiedStream.ReadAsync(modifiedBuffer, cancellationToken);
-            var maxRead = Math.Max(originalRead, modifiedRead);
-
-            if (maxRead == 0)
-            {
-                break;
-            }
-
-            var minRead = Math.Min(originalRead, modifiedRead);
-            for (var index = 0; index < minRead; index++)
-            {
-                if (originalBuffer[index] != modifiedBuffer[index])
-                {
-                    differences++;
-                }
-            }
-
-            differences += Math.Abs(originalRead - modifiedRead);
+            return "No byte offsets changed.";
         }
 
-        return differences;
+        var builder = new StringBuilder();
+        foreach (var difference in scanResult.SampledDifferences.Take(50))
+        {
+            if (builder.Length > 0)
+            {
+                builder.Append("; ");
+            }
+
+            builder
+                .Append("0x")
+                .Append(difference.Offset.ToString("X8", CultureInfo.InvariantCulture))
+                .Append(": ")
+                .Append(FormatByte(difference.OriginalByte))
+                .Append(" -> ")
+                .Append(FormatByte(difference.ModifiedByte));
+        }
+
+        if (scanResult.IsSampleTruncated || scanResult.SampledDifferences.Count > 50)
+        {
+            builder.Append("; sample truncated");
+        }
+
+        return builder.ToString();
     }
+
+    private static string BuildBlockSummary(BinaryDifferenceScanResult scanResult)
+    {
+        if (scanResult.Blocks.Count == 0)
+        {
+            return "No changed byte blocks.";
+        }
+
+        var builder = new StringBuilder();
+        foreach (var block in scanResult.Blocks.Take(25))
+        {
+            if (builder.Length > 0)
+            {
+                builder.Append("; ");
+            }
+
+            builder
+                .Append("0x")
+                .Append(block.StartOffset.ToString("X8", CultureInfo.InvariantCulture))
+                .Append("-0x")
+                .Append(block.EndOffset.ToString("X8", CultureInfo.InvariantCulture))
+                .Append(" (")
+                .Append(block.DifferenceCount.ToString(CultureInfo.InvariantCulture))
+                .Append(" differences)");
+        }
+
+        if (scanResult.AreBlocksTruncated || scanResult.Blocks.Count > 25)
+        {
+            builder.Append("; block list truncated");
+        }
+
+        return builder.ToString();
+    }
+
+    private static string FormatByte(byte? value) =>
+        value is null ? "Missing" : $"0x{value.Value:X2}";
 }

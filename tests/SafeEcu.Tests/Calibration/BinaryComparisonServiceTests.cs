@@ -41,7 +41,29 @@ public sealed class BinaryComparisonServiceTests : IDisposable
         Assert.Equal(1, result.Value!.DifferenceCount);
         Assert.Equal(33.333333m, result.Value.PercentChanged);
         Assert.Equal("Different", result.Value.Result);
+        Assert.Contains("0x00000001: 0x02 -> 0xFF", result.Value.DifferenceSummary);
+        Assert.Contains("0x00000001-0x00000001", result.Value.DifferenceBlockSummary);
         Assert.Single(comparisons);
+    }
+
+    [Fact]
+    public async Task Compare_persists_changed_offsets_and_blocks()
+    {
+        await InitializeDatabaseAsync();
+        var vehicle = await CreateVehicleAsync();
+        var ecuInfo = await CreateEcuInfoAsync(vehicle.Id);
+        var original = await ImportFileAsync(vehicle.Id, ecuInfo.Id, "original.bin", [0x10, 0x20, 0x30, 0x40], EcuFileType.Original);
+        var modified = await ImportFileAsync(vehicle.Id, ecuInfo.Id, "modified.mod", [0x10, 0x21, 0x31, 0x40], EcuFileType.Modified);
+        var service = CreateService();
+
+        await service.CompareAsync(new BinaryComparisonRequest(original.Id, modified.Id));
+        var comparisons = await service.ListAsync();
+        var comparison = Assert.Single(comparisons);
+
+        Assert.Equal(2, comparison.DifferenceCount);
+        Assert.Contains("0x00000001: 0x20 -> 0x21", comparison.DifferenceSummary);
+        Assert.Contains("0x00000002: 0x30 -> 0x31", comparison.DifferenceSummary);
+        Assert.Contains("0x00000001-0x00000002 (2 differences)", comparison.DifferenceBlockSummary);
     }
 
     [Fact]
