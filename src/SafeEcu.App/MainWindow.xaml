@@ -545,6 +545,10 @@
                         Padding="16"
                         Margin="0,0,0,16">
                     <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                        </Grid.RowDefinitions>
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*" />
                             <ColumnDefinition Width="16" />
@@ -554,7 +558,7 @@
                             <ColumnDefinition Width="Auto" />
                         </Grid.ColumnDefinitions>
 
-                        <StackPanel Grid.Column="0">
+                        <StackPanel Grid.Row="0" Grid.Column="0" Margin="0,0,0,12">
                             <TextBlock x:Name="ComparisonVehicleLabel" Foreground="{StaticResource MutedTextBrush}" />
                             <ComboBox x:Name="ComparisonVehicleSelector"
                                       DisplayMemberPath="DisplayName"
@@ -562,14 +566,14 @@
                                       Margin="0,4,0,0" />
                         </StackPanel>
 
-                        <StackPanel Grid.Column="2">
+                        <StackPanel Grid.Row="0" Grid.Column="2" Margin="0,0,0,12">
                             <TextBlock x:Name="ComparisonOriginalFileLabel" Foreground="{StaticResource MutedTextBrush}" />
                             <ComboBox x:Name="ComparisonOriginalFileSelector"
                                       DisplayMemberPath="DisplayName"
                                       Margin="0,4,0,0" />
                         </StackPanel>
 
-                        <StackPanel Grid.Column="4">
+                        <StackPanel Grid.Row="0" Grid.Column="4" Margin="0,0,0,12">
                             <TextBlock x:Name="ComparisonModifiedFileLabel" Foreground="{StaticResource MutedTextBrush}" />
                             <ComboBox x:Name="ComparisonModifiedFileSelector"
                                       DisplayMemberPath="DisplayName"
@@ -660,7 +664,7 @@
                             <ColumnDefinition Width="Auto" />
                         </Grid.ColumnDefinitions>
 
-                        <StackPanel Grid.Column="0">
+                        <StackPanel Grid.Row="0" Grid.Column="0" Margin="0,0,0,12">
                             <TextBlock x:Name="MapWorkspaceVehicleLabel" Foreground="{StaticResource MutedTextBrush}" />
                             <ComboBox x:Name="MapWorkspaceVehicleSelector"
                                       DisplayMemberPath="DisplayName"
@@ -668,31 +672,32 @@
                                       Margin="0,4,0,0" />
                         </StackPanel>
 
-                        <StackPanel Grid.Column="2">
+                        <StackPanel Grid.Row="0" Grid.Column="2" Margin="0,0,0,12">
                             <TextBlock x:Name="MapWorkspaceFileLabel" Foreground="{StaticResource MutedTextBrush}" />
                             <ComboBox x:Name="MapWorkspaceFileSelector"
                                       DisplayMemberPath="DisplayName"
                                       Margin="0,4,0,0" />
                         </StackPanel>
 
-                        <StackPanel Grid.Column="4">
+                        <StackPanel Grid.Row="0" Grid.Column="4" Margin="0,0,0,12">
                             <TextBlock x:Name="MapWorkspaceOffsetLabel" Foreground="{StaticResource MutedTextBrush}" />
                             <TextBox x:Name="MapWorkspaceOffsetTextBox"
                                      Text="0"
                                      Margin="0,4,0,0" />
                         </StackPanel>
 
-                        <StackPanel Grid.Column="6">
+                        <StackPanel Grid.Row="0" Grid.Column="6" Margin="0,0,0,12">
                             <TextBlock x:Name="MapWorkspaceLengthLabel" Foreground="{StaticResource MutedTextBrush}" />
                             <TextBox x:Name="MapWorkspaceLengthTextBox"
                                      Text="128"
                                      Margin="0,4,0,0" />
                         </StackPanel>
 
-                        <StackPanel Grid.Column="7"
+                        <StackPanel Grid.Row="0"
+                                    Grid.Column="7"
                                     Orientation="Horizontal"
                                     VerticalAlignment="Bottom"
-                                    Margin="16,0,0,0">
+                                    Margin="16,0,0,12">
                             <Button x:Name="RefreshMapWorkspaceButton"
                                     Click="OnRefreshMapWorkspaceClick"
                                     Padding="14,8"
@@ -701,7 +706,40 @@
                                     Click="OnPreviewMapWorkspaceClick"
                                     Padding="14,8"
                                     Background="{StaticResource AccentBrush}"
-                                    Foreground="White" />
+                                     Foreground="White" />
+                        </StackPanel>
+
+                        <StackPanel Grid.Row="1" Grid.Column="0">
+                            <TextBlock x:Name="MapWorkspaceEcuLabel" Foreground="{StaticResource MutedTextBrush}" />
+                            <ComboBox x:Name="MapWorkspaceEcuSelector"
+                                      DisplayMemberPath="DisplayName"
+                                      Margin="0,4,0,0" />
+                        </StackPanel>
+
+                        <StackPanel Grid.Row="1" Grid.Column="2">
+                            <TextBlock x:Name="MapWorkspaceProfileLabel" Foreground="{StaticResource MutedTextBrush}" />
+                            <ComboBox x:Name="MapWorkspaceProfileSelector"
+                                      DisplayMemberPath="DisplayName"
+                                      Margin="0,4,0,0" />
+                        </StackPanel>
+
+                        <StackPanel Grid.Row="1" Grid.Column="4">
+                            <TextBlock x:Name="MapWorkspacePercentageLabel" Foreground="{StaticResource MutedTextBrush}" />
+                            <TextBox x:Name="MapWorkspacePercentageTextBox"
+                                     Text="0"
+                                     Margin="0,4,0,0" />
+                        </StackPanel>
+
+                        <StackPanel Grid.Row="1"
+                                    Grid.Column="6"
+                                    Grid.ColumnSpan="2"
+                                    Orientation="Horizontal"
+                                    VerticalAlignment="Bottom"
+                                    HorizontalAlignment="Right"
+                                    Margin="16,0,0,0">
+                            <Button x:Name="EvaluatePercentageIntentButton"
+                                    Click="OnEvaluatePercentageIntentClick"
+                                    Padding="14,8" />
                         </StackPanel>
                     </Grid>
                 </Border>

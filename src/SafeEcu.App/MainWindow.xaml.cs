@@ -5,10 +5,12 @@ using System.Windows.Shapes;
 using Microsoft.Win32;
 using SafeEcu.Calibration;
 using SafeEcu.Application.Calibrations;
+using SafeEcu.Application.CalibrationProfiles;
 using SafeEcu.Application.Common;
 using SafeEcu.Application.Localization;
 using SafeEcu.Application.MapWorkspace;
 using SafeEcu.Application.Navigation;
+using SafeEcu.Application.PercentageIntent;
 using SafeEcu.Application.Programmers;
 using SafeEcu.Application.Reports;
 using SafeEcu.Application.Vehicles;
@@ -30,6 +32,8 @@ public partial class MainWindow : Window
     private readonly EcuFileService _ecuFileService;
     private readonly BinaryComparisonService _binaryComparisonService;
     private readonly MapWorkspacePreviewService _mapWorkspacePreviewService;
+    private readonly PercentageIntentEngine _percentageIntentEngine;
+    private readonly CalibrationProfileCatalog _calibrationProfileCatalog;
     private readonly IReportService _reportService;
     private ApplicationArea _currentArea = ApplicationArea.Dashboard;
     private Guid? _selectedVehicleId;
@@ -49,6 +53,8 @@ public partial class MainWindow : Window
         EcuFileService ecuFileService,
         BinaryComparisonService binaryComparisonService,
         MapWorkspacePreviewService mapWorkspacePreviewService,
+        PercentageIntentEngine percentageIntentEngine,
+        CalibrationProfileCatalog calibrationProfileCatalog,
         IReportService reportService)
     {
         _logger = logger;
@@ -62,6 +68,8 @@ public partial class MainWindow : Window
         _ecuFileService = ecuFileService;
         _binaryComparisonService = binaryComparisonService;
         _mapWorkspacePreviewService = mapWorkspacePreviewService;
+        _percentageIntentEngine = percentageIntentEngine;
+        _calibrationProfileCatalog = calibrationProfileCatalog;
         _reportService = reportService;
 
         InitializeComponent();
@@ -78,6 +86,7 @@ public partial class MainWindow : Window
 
         LanguageSelector.ItemsSource = _localizer.SupportedLanguages;
         LanguageSelector.SelectedValue = _localizer.CurrentLanguageCode;
+        MapWorkspaceProfileSelector.ItemsSource = BuildCalibrationProfileOptions();
 
         RefreshLocalizedText();
         ShowSection(ApplicationArea.Dashboard);
@@ -263,10 +272,14 @@ public partial class MainWindow : Window
         ComparisonComparedAtColumn.Header = _localizer.Text("Comparison.ComparedAt");
         MapWorkspaceVehicleLabel.Text = _localizer.Text("MapWorkspace.Vehicle");
         MapWorkspaceFileLabel.Text = _localizer.Text("MapWorkspace.File");
+        MapWorkspaceEcuLabel.Text = _localizer.Text("MapWorkspace.Ecu");
+        MapWorkspaceProfileLabel.Text = _localizer.Text("MapWorkspace.Profile");
+        MapWorkspacePercentageLabel.Text = _localizer.Text("MapWorkspace.Percentage");
         MapWorkspaceOffsetLabel.Text = _localizer.Text("MapWorkspace.Offset");
         MapWorkspaceLengthLabel.Text = _localizer.Text("MapWorkspace.Length");
         RefreshMapWorkspaceButton.Content = _localizer.Text("MapWorkspace.Refresh");
         PreviewMapWorkspaceButton.Content = _localizer.Text("MapWorkspace.Preview");
+        EvaluatePercentageIntentButton.Content = _localizer.Text("MapWorkspace.EvaluatePercentage");
         MapWorkspaceChartTitle.Text = _localizer.Text("MapWorkspace.Chart");
         MapWorkspaceTableTitle.Text = _localizer.Text("MapWorkspace.Table");
         MapWorkspaceOffsetColumn.Header = _localizer.Text("MapWorkspace.Offset");
@@ -665,13 +678,21 @@ public partial class MainWindow : Window
         }
 
         var files = await _ecuFileService.ListByVehicleAsync(selectedVehicle.Id);
+        var ecus = await _ecuInfoService.ListByVehicleAsync(selectedVehicle.Id);
         var originalFiles = files
             .Where(file => file.FileType == EcuFileType.Original)
             .Select(ToEcuFileSelectionItem)
             .ToArray();
+        var ecuItems = ecus
+            .Select(ecu => new EcuSelectionItem(
+                ecu.Id,
+                $"{ecu.Manufacturer ?? "Unknown"} {ecu.EcuFamily ?? "Unknown"} {ecu.SoftwareVersion ?? string.Empty}".Trim()))
+            .ToArray();
 
         MapWorkspaceFileSelector.ItemsSource = originalFiles;
         MapWorkspaceFileSelector.SelectedItem = originalFiles.FirstOrDefault();
+        MapWorkspaceEcuSelector.ItemsSource = ecuItems;
+        MapWorkspaceEcuSelector.SelectedItem = ecuItems.FirstOrDefault();
         MapWorkspaceStatusText.Text = _localizer.Text("MapWorkspace.ReadOnlyNotice");
         MapWorkspaceEditGateText.Text = _localizer.Text("MapWorkspace.EditBlocked");
     }
@@ -738,6 +759,48 @@ public partial class MainWindow : Window
         DrawMapWorkspaceChart(result.Points);
         MapWorkspaceStatusText.Text = string.Join(Environment.NewLine, result.Messages);
         MapWorkspaceEditGateText.Text = string.Join(Environment.NewLine, result.BlockReasons);
+    }
+
+    private async void OnEvaluatePercentageIntentClick(object sender, RoutedEventArgs e)
+    {
+        if (MapWorkspaceVehicleSelector.SelectedItem is not VehicleSelectionItem selectedVehicle)
+        {
+            MapWorkspaceStatusText.Text = _localizer.Text("MapWorkspace.NoVehicle");
+            return;
+        }
+
+        if (MapWorkspaceEcuSelector.SelectedItem is not EcuSelectionItem selectedEcu)
+        {
+            MapWorkspaceStatusText.Text = _localizer.Text("MapWorkspace.NoEcu");
+            return;
+        }
+
+        if (MapWorkspaceProfileSelector.SelectedItem is not CalibrationProfileOption selectedProfile)
+        {
+            MapWorkspaceStatusText.Text = _localizer.Text("MapWorkspace.NoProfile");
+            return;
+        }
+
+        if (!decimal.TryParse(MapWorkspacePercentageTextBox.Text.Trim(), out var percentage))
+        {
+            MapWorkspaceStatusText.Text = _localizer.Text("MapWorkspace.InvalidPercentage");
+            return;
+        }
+
+        var result = await _percentageIntentEngine.EvaluateAsync(new PercentageIntentRequest(
+            selectedVehicle.Id,
+            selectedEcu.Id,
+            selectedProfile.Key,
+            percentage));
+
+        MapWorkspaceStatusText.Text = result.IsAllowed
+            ? _localizer.Text("MapWorkspace.PercentageAllowed")
+            : _localizer.Text("MapWorkspace.PercentageBlocked");
+        MapWorkspaceEditGateText.Text = string.Join(
+            Environment.NewLine,
+            result.SafetyReport.BlockReasons.Count == 0
+                ? result.SafetyReport.Messages
+                : result.SafetyReport.BlockReasons);
     }
 
     private void DrawMapWorkspaceChart(IReadOnlyList<MapWorkspacePreviewPoint> points)
@@ -1075,6 +1138,12 @@ public partial class MainWindow : Window
         return options;
     }
 
+    private IReadOnlyList<CalibrationProfileOption> BuildCalibrationProfileOptions() =>
+        _calibrationProfileCatalog
+            .ListAll()
+            .Select(profile => new CalibrationProfileOption(profile.Key, profile.DisplayName))
+            .ToArray();
+
     private void RefreshVehicleProfileOptions()
     {
         var selectedProfileId = (VehicleProfileSelector.SelectedItem as VehicleProfileOption)?.Profile?.Id;
@@ -1140,3 +1209,7 @@ public sealed record MapWorkspacePointListItem(
     string HexByte,
     int RawValue,
     string ScaledValue);
+
+public sealed record EcuSelectionItem(Guid Id, string DisplayName);
+
+public sealed record CalibrationProfileOption(string Key, string DisplayName);

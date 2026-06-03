@@ -1,9 +1,11 @@
 using System.Windows;
 using System.Windows.Threading;
 using SafeEcu.Calibration;
+using SafeEcu.Application.CalibrationProfiles;
 using SafeEcu.Application.Common;
 using SafeEcu.Application.Localization;
 using SafeEcu.Application.MapWorkspace;
+using SafeEcu.Application.PercentageIntent;
 using SafeEcu.Application.Programmers;
 using SafeEcu.Application.Vehicles;
 using SafeEcu.Infrastructure.Files;
@@ -59,6 +61,12 @@ public partial class App : System.Windows.Application
         var comparisonRepository = new CalibrationComparisonRepository(dbContextFactory);
         var binaryComparisonService = new BinaryComparisonService(ecuFileRepository, comparisonRepository, _logger);
         var mapWorkspacePreviewService = new MapWorkspacePreviewService();
+        var calibrationProfileCatalog = new CalibrationProfileCatalog();
+        var percentageIntentEngine = new PercentageIntentEngine(
+            vehicleRepository,
+            ecuInfoRepository,
+            new PercentageIntentValidationService(calibrationProfileCatalog),
+            ecuIdentificationService);
         var reportService = new HtmlTechnicalReportService(dbContextFactory, _logger);
         var vehicleProfileCatalog = new VehicleProfileCatalog();
         var programmerCapabilityService = new ProgrammerCapabilityService(ProgrammerAdapterCatalog.CreateDefaultAdapters());
@@ -75,6 +83,8 @@ public partial class App : System.Windows.Application
             ecuFileService,
             binaryComparisonService,
             mapWorkspacePreviewService,
+            percentageIntentEngine,
+            calibrationProfileCatalog,
             reportService);
         mainWindow.Show();
     }

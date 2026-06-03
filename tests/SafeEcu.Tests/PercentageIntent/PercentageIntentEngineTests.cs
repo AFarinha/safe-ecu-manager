@@ -78,6 +78,29 @@ public sealed class PercentageIntentEngineTests : IDisposable
     }
 
     [Fact]
+    public async Task Evaluate_blocks_renault_megane_percentage_until_verified_map_rules_exist()
+    {
+        await InitializeDatabaseAsync();
+        var vehicle = await CreateVehicleAsync("Renault", "Megane 3");
+        var ecu = await CreateEcuAsync(vehicle.Id, SupportStatus.Verified);
+
+        var result = await CreateEngine().EvaluateAsync(new PercentageIntentRequest(
+            vehicle.Id,
+            ecu.Id,
+            "smooth-response",
+            2m));
+
+        Assert.False(result.IsAllowed);
+        Assert.False(result.ChangeSet.CreatesModifiedFile);
+        Assert.Contains(
+            result.SafetyReport.BlockReasons,
+            reason => reason.Contains("Technical map conversion", StringComparison.OrdinalIgnoreCase));
+        Assert.Contains(
+            result.SafetyReport.BlockReasons,
+            reason => reason.Contains("Checksum", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
     public async Task Evaluate_blocks_when_ecu_belongs_to_other_vehicle()
     {
         await InitializeDatabaseAsync();
@@ -119,7 +142,7 @@ public sealed class PercentageIntentEngineTests : IDisposable
         Assert.True(result.IsSuccess);
     }
 
-    private async Task<Vehicle> CreateVehicleAsync(string make = "Opel", string model = "Corsa C")
+    private async Task<Vehicle> CreateVehicleAsync(string make = "Renault", string model = "Megane 3")
     {
         var vehicle = new Vehicle { Make = make, Model = model };
         await new VehicleRepository(_dbContextFactory).AddAsync(vehicle);
@@ -134,8 +157,8 @@ public sealed class PercentageIntentEngineTests : IDisposable
         var ecu = new EcuInfo
         {
             VehicleId = vehicleId,
-            Manufacturer = highConfidence ? "Delco" : "Unknown",
-            EcuFamily = highConfidence ? "Delco/Delphi/Isuzu Opel 1.7 DTI" : "Unknown",
+            Manufacturer = highConfidence ? "Delphi" : "Unknown",
+            EcuFamily = highConfidence ? "Delphi DCM" : "Unknown",
             HardwareReference = highConfidence ? "HW-Test" : string.Empty,
             SoftwareReference = highConfidence ? "SW-Test" : string.Empty,
             SoftwareVersion = highConfidence ? "1.0" : string.Empty,
