@@ -38,6 +38,7 @@ public sealed class NavigationCatalogTests
                 ApplicationArea.EcuFiles,
                 ApplicationArea.Programmers,
                 ApplicationArea.Comparison,
+                ApplicationArea.CalibrationPreview,
                 ApplicationArea.Reports
             ],
             implemented);

@@ -1,10 +1,13 @@
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Media;
+using System.Windows.Shapes;
 using Microsoft.Win32;
 using SafeEcu.Calibration;
 using SafeEcu.Application.Calibrations;
 using SafeEcu.Application.Common;
 using SafeEcu.Application.Localization;
+using SafeEcu.Application.MapWorkspace;
 using SafeEcu.Application.Navigation;
 using SafeEcu.Application.Programmers;
 using SafeEcu.Application.Reports;
@@ -26,6 +29,7 @@ public partial class MainWindow : Window
     private readonly EcuFileImportService _ecuFileImportService;
     private readonly EcuFileService _ecuFileService;
     private readonly BinaryComparisonService _binaryComparisonService;
+    private readonly MapWorkspacePreviewService _mapWorkspacePreviewService;
     private readonly IReportService _reportService;
     private ApplicationArea _currentArea = ApplicationArea.Dashboard;
     private Guid? _selectedVehicleId;
@@ -44,6 +48,7 @@ public partial class MainWindow : Window
         EcuFileImportService ecuFileImportService,
         EcuFileService ecuFileService,
         BinaryComparisonService binaryComparisonService,
+        MapWorkspacePreviewService mapWorkspacePreviewService,
         IReportService reportService)
     {
         _logger = logger;
@@ -56,6 +61,7 @@ public partial class MainWindow : Window
         _ecuFileImportService = ecuFileImportService;
         _ecuFileService = ecuFileService;
         _binaryComparisonService = binaryComparisonService;
+        _mapWorkspacePreviewService = mapWorkspacePreviewService;
         _reportService = reportService;
 
         InitializeComponent();
@@ -100,13 +106,15 @@ public partial class MainWindow : Window
         var isEcus = area == ApplicationArea.Ecus;
         var isEcuFiles = area == ApplicationArea.EcuFiles;
         var isComparison = area == ApplicationArea.Comparison;
+        var isMapWorkspace = area == ApplicationArea.CalibrationPreview;
         var isReports = area == ApplicationArea.Reports;
         var isProgrammers = area == ApplicationArea.Programmers;
-        GenericPanel.Visibility = isVehicles || isEcus || isEcuFiles || isComparison || isReports || isProgrammers ? Visibility.Collapsed : Visibility.Visible;
+        GenericPanel.Visibility = isVehicles || isEcus || isEcuFiles || isComparison || isMapWorkspace || isReports || isProgrammers ? Visibility.Collapsed : Visibility.Visible;
         VehiclesPanel.Visibility = isVehicles ? Visibility.Visible : Visibility.Collapsed;
         EcusPanel.Visibility = isEcus ? Visibility.Visible : Visibility.Collapsed;
         EcuFilesPanel.Visibility = isEcuFiles ? Visibility.Visible : Visibility.Collapsed;
         ComparisonPanel.Visibility = isComparison ? Visibility.Visible : Visibility.Collapsed;
+        MapWorkspacePanel.Visibility = isMapWorkspace ? Visibility.Visible : Visibility.Collapsed;
         ReportsPanel.Visibility = isReports ? Visibility.Visible : Visibility.Collapsed;
         ProgrammersPanel.Visibility = isProgrammers ? Visibility.Visible : Visibility.Collapsed;
 
@@ -125,6 +133,10 @@ public partial class MainWindow : Window
         else if (isComparison)
         {
             _ = LoadComparisonVehiclesAsync();
+        }
+        else if (isMapWorkspace)
+        {
+            _ = LoadMapWorkspaceVehiclesAsync();
         }
         else if (isReports)
         {
@@ -249,6 +261,19 @@ public partial class MainWindow : Window
         ComparisonBlocksColumn.Header = _localizer.Text("Comparison.Blocks");
         ComparisonResultColumn.Header = _localizer.Text("Comparison.Result");
         ComparisonComparedAtColumn.Header = _localizer.Text("Comparison.ComparedAt");
+        MapWorkspaceVehicleLabel.Text = _localizer.Text("MapWorkspace.Vehicle");
+        MapWorkspaceFileLabel.Text = _localizer.Text("MapWorkspace.File");
+        MapWorkspaceOffsetLabel.Text = _localizer.Text("MapWorkspace.Offset");
+        MapWorkspaceLengthLabel.Text = _localizer.Text("MapWorkspace.Length");
+        RefreshMapWorkspaceButton.Content = _localizer.Text("MapWorkspace.Refresh");
+        PreviewMapWorkspaceButton.Content = _localizer.Text("MapWorkspace.Preview");
+        MapWorkspaceChartTitle.Text = _localizer.Text("MapWorkspace.Chart");
+        MapWorkspaceTableTitle.Text = _localizer.Text("MapWorkspace.Table");
+        MapWorkspaceOffsetColumn.Header = _localizer.Text("MapWorkspace.Offset");
+        MapWorkspaceHexColumn.Header = _localizer.Text("MapWorkspace.Hex");
+        MapWorkspaceRawColumn.Header = _localizer.Text("MapWorkspace.Raw");
+        MapWorkspaceScaledColumn.Header = _localizer.Text("MapWorkspace.Scaled");
+        MapWorkspaceEditGateText.Text = _localizer.Text("MapWorkspace.EditBlocked");
         ReportComparisonLabel.Text = _localizer.Text("Reports.Comparison");
         RefreshReportsButton.Content = _localizer.Text("Reports.Refresh");
         GenerateReportButton.Content = _localizer.Text("Reports.Generate");
@@ -272,6 +297,10 @@ public partial class MainWindow : Window
         else if (_currentArea == ApplicationArea.Comparison)
         {
             _ = LoadComparisonResultsAsync();
+        }
+        else if (_currentArea == ApplicationArea.CalibrationPreview)
+        {
+            _ = LoadMapWorkspaceVehiclesAsync();
         }
         else if (_currentArea == ApplicationArea.Reports)
         {
@@ -600,6 +629,157 @@ public partial class MainWindow : Window
         {
             await LoadComparisonResultsAsync();
         }
+    }
+
+    private async Task LoadMapWorkspaceVehiclesAsync()
+    {
+        try
+        {
+            var vehicles = await _vehicleService.ListAsync();
+            var selectedVehicleId = (MapWorkspaceVehicleSelector.SelectedItem as VehicleSelectionItem)?.Id;
+            var items = vehicles
+                .Select(vehicle => new VehicleSelectionItem(
+                    vehicle.Id,
+                    $"{vehicle.Make} {vehicle.Model} {vehicle.EngineCode}".Trim()))
+                .ToArray();
+
+            MapWorkspaceVehicleSelector.ItemsSource = items;
+            MapWorkspaceVehicleSelector.SelectedItem = items.FirstOrDefault(item => item.Id == selectedVehicleId) ?? items.FirstOrDefault();
+            await LoadMapWorkspaceFilesForSelectedVehicleAsync();
+        }
+        catch (Exception exception)
+        {
+            _logger.Error("Failed to load map workspace vehicles.", exception);
+            MapWorkspaceStatusText.Text = _localizer.Text("MapWorkspace.LoadFailure");
+        }
+    }
+
+    private async Task LoadMapWorkspaceFilesForSelectedVehicleAsync()
+    {
+        if (MapWorkspaceVehicleSelector.SelectedItem is not VehicleSelectionItem selectedVehicle)
+        {
+            MapWorkspaceFileSelector.ItemsSource = Array.Empty<EcuFileSelectionItem>();
+            MapWorkspaceGrid.ItemsSource = Array.Empty<MapWorkspacePointListItem>();
+            DrawMapWorkspaceChart([]);
+            return;
+        }
+
+        var files = await _ecuFileService.ListByVehicleAsync(selectedVehicle.Id);
+        var originalFiles = files
+            .Where(file => file.FileType == EcuFileType.Original)
+            .Select(ToEcuFileSelectionItem)
+            .ToArray();
+
+        MapWorkspaceFileSelector.ItemsSource = originalFiles;
+        MapWorkspaceFileSelector.SelectedItem = originalFiles.FirstOrDefault();
+        MapWorkspaceStatusText.Text = _localizer.Text("MapWorkspace.ReadOnlyNotice");
+        MapWorkspaceEditGateText.Text = _localizer.Text("MapWorkspace.EditBlocked");
+    }
+
+    private async void OnMapWorkspaceVehicleChanged(object sender, SelectionChangedEventArgs e)
+    {
+        await LoadMapWorkspaceFilesForSelectedVehicleAsync();
+    }
+
+    private async void OnRefreshMapWorkspaceClick(object sender, RoutedEventArgs e)
+    {
+        await LoadMapWorkspaceVehiclesAsync();
+    }
+
+    private async void OnPreviewMapWorkspaceClick(object sender, RoutedEventArgs e)
+    {
+        MapWorkspaceStatusText.Text = string.Empty;
+        MapWorkspaceGrid.ItemsSource = Array.Empty<MapWorkspacePointListItem>();
+        DrawMapWorkspaceChart([]);
+
+        if (MapWorkspaceFileSelector.SelectedItem is not EcuFileSelectionItem selectedFile)
+        {
+            MapWorkspaceStatusText.Text = _localizer.Text("MapWorkspace.NoFile");
+            return;
+        }
+
+        if (!TryParseOffset(MapWorkspaceOffsetTextBox.Text, out var startOffset))
+        {
+            MapWorkspaceStatusText.Text = _localizer.Text("MapWorkspace.InvalidOffset");
+            return;
+        }
+
+        if (!int.TryParse(MapWorkspaceLengthTextBox.Text.Trim(), out var length))
+        {
+            MapWorkspaceStatusText.Text = _localizer.Text("MapWorkspace.InvalidLength");
+            return;
+        }
+
+        var file = await _ecuFileService.GetByIdAsync(selectedFile.Id);
+        if (file is null)
+        {
+            MapWorkspaceStatusText.Text = _localizer.Text("MapWorkspace.NoFile");
+            return;
+        }
+
+        var result = await _mapWorkspacePreviewService.PreviewRawBytesAsync(
+            new MapWorkspacePreviewRequest(file.FilePath, startOffset, length));
+
+        if (!result.IsSuccess)
+        {
+            MapWorkspaceStatusText.Text = string.Join(Environment.NewLine, result.BlockReasons);
+            return;
+        }
+
+        var rows = result.Points
+            .Select(point => new MapWorkspacePointListItem(
+                $"0x{point.Offset:X8}",
+                $"0x{point.RawByte:X2}",
+                point.RawByte,
+                $"{point.ScaledValue:0.######} {result.Unit}"))
+            .ToArray();
+
+        MapWorkspaceGrid.ItemsSource = rows;
+        DrawMapWorkspaceChart(result.Points);
+        MapWorkspaceStatusText.Text = string.Join(Environment.NewLine, result.Messages);
+        MapWorkspaceEditGateText.Text = string.Join(Environment.NewLine, result.BlockReasons);
+    }
+
+    private void DrawMapWorkspaceChart(IReadOnlyList<MapWorkspacePreviewPoint> points)
+    {
+        MapWorkspaceChartCanvas.Children.Clear();
+        if (points.Count == 0)
+        {
+            return;
+        }
+
+        var width = Math.Max(1, MapWorkspaceChartCanvas.ActualWidth);
+        if (width < 10)
+        {
+            width = 640;
+        }
+
+        var height = Math.Max(1, MapWorkspaceChartCanvas.Height);
+        var polyline = new Polyline
+        {
+            Stroke = new SolidColorBrush(Color.FromRgb(42, 111, 151)),
+            StrokeThickness = 2
+        };
+
+        for (var index = 0; index < points.Count; index++)
+        {
+            var x = points.Count == 1 ? width / 2 : index * width / (points.Count - 1);
+            var y = height - (double)points[index].RawByte * height / 255d;
+            polyline.Points.Add(new Point(x, y));
+        }
+
+        MapWorkspaceChartCanvas.Children.Add(polyline);
+    }
+
+    private static bool TryParseOffset(string value, out long offset)
+    {
+        value = value.Trim();
+        if (value.StartsWith("0x", StringComparison.OrdinalIgnoreCase))
+        {
+            return long.TryParse(value[2..], System.Globalization.NumberStyles.HexNumber, null, out offset);
+        }
+
+        return long.TryParse(value, out offset);
     }
 
     private async Task LoadEcuFileVehiclesAsync()
@@ -954,3 +1134,9 @@ public sealed record ComparisonListItem(
     string ComparedAt);
 
 public sealed record ReportComparisonSelectionItem(Guid Id, string DisplayName);
+
+public sealed record MapWorkspacePointListItem(
+    string Offset,
+    string HexByte,
+    int RawValue,
+    string ScaledValue);

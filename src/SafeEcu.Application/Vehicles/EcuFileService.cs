@@ -45,4 +45,7 @@ public sealed class EcuFileService
 
     public Task<IReadOnlyList<EcuFile>> ListByVehicleAsync(Guid vehicleId, CancellationToken cancellationToken = default) =>
         _ecuFileRepository.ListByVehicleAsync(vehicleId, cancellationToken);
+
+    public Task<EcuFile?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default) =>
+        _ecuFileRepository.GetByIdAsync(id, cancellationToken);
 }
