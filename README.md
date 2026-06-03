@@ -73,8 +73,8 @@ Direct read, direct write, flashing, K-Line commands, FTDI control, seed-key/sec
 
 ## Initial Vehicle Targets
 
-- Opel Corsa C 1.7 DTI Y17DT/Y17DTI: priority target for file-only management and documentation.
-- Renault Megane 3 1.5 dCi K9K: future target, ECU to be confirmed.
+- Renault Megane 3 1.5 dCi K9K: primary target for file-only management, identification, comparison and future verified map workspace work.
+- Opel Corsa C 1.7 DTI Y17DT/Y17DTI: secondary metadata target retained for documentation and regression coverage.
 
 The application never assumes that all vehicles of the same model use the same ECU or software version.
 

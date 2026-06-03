@@ -10,9 +10,24 @@ public sealed class EcuFamilyProfileServiceTests
     {
         var profiles = new EcuFamilyProfileCatalog().Profiles;
 
+        Assert.Equal("Delphi DCM", profiles[0].FamilyName);
         Assert.Contains(profiles, profile => profile.FamilyName == "Bosch EDC15");
         Assert.Contains(profiles, profile => profile.FamilyName == "Delco/Delphi/Isuzu Opel 1.7 DTI");
         Assert.DoesNotContain(profiles, profile => profile.SupportLevel == EcuFamilySupportLevel.Verified);
+    }
+
+    [Fact]
+    public void FindBestMatch_matches_renault_megane_candidate_family()
+    {
+        var service = new EcuFamilyProfileService(new EcuFamilyProfileCatalog());
+
+        var match = service.FindBestMatch(new EcuInfo
+        {
+            EcuFamily = "Delphi DCM"
+        });
+
+        Assert.NotNull(match);
+        Assert.Equal(EcuFamilySupportLevel.FileManagement, match.SupportLevel);
     }
 
     [Fact]

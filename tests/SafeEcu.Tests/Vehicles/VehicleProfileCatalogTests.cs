@@ -10,6 +10,8 @@ public sealed class VehicleProfileCatalogTests
     {
         var catalog = new VehicleProfileCatalog();
 
+        Assert.Equal("renault-megane-3-k9k", catalog.Profiles[0].Id);
+
         Assert.Contains(catalog.Profiles, profile =>
             profile.Make == "Opel" &&
             profile.Model == "Corsa C" &&

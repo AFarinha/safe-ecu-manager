@@ -30,6 +30,8 @@ Safe ECU Calibration Manager is built incrementally. Each phase should remain sm
 
 ## Planned
 
+- Renault Megane 3 focused workflow: stronger K9K variant, ECU family and software evidence capture.
+- Renault candidate ECU profiles, starting with metadata-only Delphi DCM/Bosch EDC identification.
 - UI integration for audit records.
 - UI integration for guided profile availability.
 - More complete technical report sections for audit and safety results.
@@ -56,7 +58,7 @@ The user must read ECU files with external software and import files into this a
 
 ## Vehicle Support Status
 
-- Opel Corsa C 1.7 DTI Y17DT/Y17DTI: file management and documentation target.
-- Renault Megane 3 1.5 dCi K9K: future target, ECU to be confirmed.
+- Renault Megane 3 1.5 dCi K9K: primary file management and documentation target. Exact ECU, K9K variant and software must be confirmed.
+- Opel Corsa C 1.7 DTI Y17DT/Y17DTI: secondary metadata target.
 
 No calibration output is verified for either vehicle.
