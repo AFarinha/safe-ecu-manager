@@ -653,6 +653,10 @@
                         Padding="16"
                         Margin="0,0,0,16">
                     <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                        </Grid.RowDefinitions>
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="2*" />
                             <ColumnDefinition Width="16" />
@@ -697,16 +701,19 @@
                                     Grid.Column="7"
                                     Orientation="Horizontal"
                                     VerticalAlignment="Bottom"
+                                    HorizontalAlignment="Right"
                                     Margin="16,0,0,12">
                             <Button x:Name="RefreshMapWorkspaceButton"
                                     Click="OnRefreshMapWorkspaceClick"
+                                    MinWidth="96"
                                     Padding="14,8"
                                     Margin="0,0,8,0" />
                             <Button x:Name="PreviewMapWorkspaceButton"
                                     Click="OnPreviewMapWorkspaceClick"
+                                    MinWidth="96"
                                     Padding="14,8"
                                     Background="{StaticResource AccentBrush}"
-                                     Foreground="White" />
+                                    Foreground="White" />
                         </StackPanel>
 
                         <StackPanel Grid.Row="1" Grid.Column="0">
@@ -739,6 +746,7 @@
                                     Margin="16,0,0,0">
                             <Button x:Name="EvaluatePercentageIntentButton"
                                     Click="OnEvaluatePercentageIntentClick"
+                                    MinWidth="120"
                                     Padding="14,8" />
                         </StackPanel>
                     </Grid>
