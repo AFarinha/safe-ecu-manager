@@ -51,6 +51,11 @@ public partial class App : System.Windows.Application
         var ecuIdentificationService = new EcuIdentificationService();
         var ecuInfoService = new EcuInfoService(ecuInfoRepository, _logger, ecuIdentificationService);
         var ecuFileService = new EcuFileService(ecuFileRepository, _logger);
+        var renaultMegane3BaselineSeeder = new RenaultMegane3BaselineSeeder(
+            vehicleRepository,
+            ecuInfoRepository,
+            _logger);
+        await renaultMegane3BaselineSeeder.SeedIfEmptyAsync();
         var ecuFileValidationService = new EcuFileValidationService(ecuFileRepository);
         var ecuFileImportService = new EcuFileImportService(
             ecuInfoRepository,
