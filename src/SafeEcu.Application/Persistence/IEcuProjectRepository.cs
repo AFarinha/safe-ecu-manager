@@ -10,5 +10,7 @@ public interface IEcuProjectRepository
 
     Task<EcuProject?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default);
 
+    Task<IReadOnlyList<EcuProject>> ListAsync(CancellationToken cancellationToken = default);
+
     Task<IReadOnlyList<EcuProject>> ListByVehicleAsync(Guid vehicleId, CancellationToken cancellationToken = default);
 }

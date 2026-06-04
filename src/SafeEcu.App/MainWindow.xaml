@@ -106,6 +106,103 @@
                 </StackPanel>
             </Border>
 
+            <Grid x:Name="ProjectsPanel" Grid.Row="1" Visibility="Collapsed">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="2*" MinWidth="360" />
+                    <ColumnDefinition Width="24" />
+                    <ColumnDefinition Width="3*" MinWidth="460" />
+                </Grid.ColumnDefinitions>
+
+                <Border Grid.Column="0"
+                        Background="{StaticResource PanelBackgroundBrush}"
+                        BorderBrush="#D6DEE6"
+                        BorderThickness="1"
+                        CornerRadius="6"
+                        Padding="16">
+                    <DockPanel>
+                        <StackPanel DockPanel.Dock="Top" Margin="0,0,0,12">
+                            <TextBlock x:Name="ProjectsListTitle"
+                                       Foreground="{StaticResource PrimaryTextBrush}"
+                                       FontSize="17"
+                                       FontWeight="SemiBold" />
+                            <Button x:Name="RefreshProjectsButton"
+                                    Click="OnRefreshProjectsClick"
+                                    Padding="14,8"
+                                    HorizontalAlignment="Left"
+                                    Margin="0,10,0,0" />
+                        </StackPanel>
+
+                        <DataGrid x:Name="ProjectsGrid"
+                                  AutoGenerateColumns="False"
+                                  IsReadOnly="True"
+                                  SelectionMode="Single"
+                                  SelectionChanged="OnProjectSelectionChanged"
+                                  CanUserAddRows="False"
+                                  HeadersVisibility="Column"
+                                  GridLinesVisibility="Horizontal"
+                                  BorderThickness="0">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn x:Name="ProjectNameColumn" Binding="{Binding Name}" Width="2*" />
+                                <DataGridTextColumn x:Name="ProjectVehicleColumn" Binding="{Binding Vehicle}" Width="2*" />
+                                <DataGridTextColumn x:Name="ProjectVersionsColumn" Binding="{Binding VersionCount}" Width="*" />
+                            </DataGrid.Columns>
+                        </DataGrid>
+                    </DockPanel>
+                </Border>
+
+                <Border Grid.Column="2"
+                        Background="{StaticResource PanelBackgroundBrush}"
+                        BorderBrush="#D6DEE6"
+                        BorderThickness="1"
+                        CornerRadius="6"
+                        Padding="16">
+                    <DockPanel>
+                        <TextBlock x:Name="ProjectFormTitle"
+                                   DockPanel.Dock="Top"
+                                   Foreground="{StaticResource PrimaryTextBrush}"
+                                   FontSize="17"
+                                   FontWeight="SemiBold"
+                                   Margin="0,0,0,12" />
+
+                        <StackPanel>
+                            <TextBlock x:Name="ProjectVehicleLabel" Foreground="{StaticResource MutedTextBrush}" />
+                            <ComboBox x:Name="ProjectVehicleSelector"
+                                      DisplayMemberPath="DisplayName"
+                                      SelectionChanged="OnProjectVehicleChanged"
+                                      Margin="0,4,0,12" />
+
+                            <TextBlock x:Name="ProjectOriginalFileLabel" Foreground="{StaticResource MutedTextBrush}" />
+                            <ComboBox x:Name="ProjectOriginalFileSelector"
+                                      DisplayMemberPath="DisplayName"
+                                      Margin="0,4,0,12" />
+
+                            <TextBlock x:Name="ProjectNameLabel" Foreground="{StaticResource MutedTextBrush}" />
+                            <TextBox x:Name="ProjectNameTextBox" Margin="0,4,0,12" />
+
+                            <TextBlock x:Name="ProjectNotesLabel" Foreground="{StaticResource MutedTextBrush}" />
+                            <TextBox x:Name="ProjectNotesTextBox"
+                                     AcceptsReturn="True"
+                                     Height="90"
+                                     TextWrapping="Wrap"
+                                     Margin="0,4,0,12" />
+
+                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                                <Button x:Name="CreateProjectButton"
+                                        Click="OnCreateProjectClick"
+                                        Padding="14,8"
+                                        Background="{StaticResource AccentBrush}"
+                                        Foreground="White" />
+                            </StackPanel>
+
+                            <TextBlock x:Name="ProjectMessage"
+                                       Foreground="{StaticResource MutedTextBrush}"
+                                       TextWrapping="Wrap"
+                                       Margin="0,12,0,0" />
+                        </StackPanel>
+                    </DockPanel>
+                </Border>
+            </Grid>
+
             <Grid x:Name="VehiclesPanel" Grid.Row="1" Visibility="Collapsed">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="2*" MinWidth="320" />

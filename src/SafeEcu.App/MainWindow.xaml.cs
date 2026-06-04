@@ -124,6 +124,7 @@ public partial class MainWindow : Window
             ? _localizer.Text("Status.AvailableNow")
             : _localizer.Text("Status.FuturePhase");
         SectionBody.Text = BuildBody(section);
+        var isProjects = area == ApplicationArea.Projects;
         var isVehicles = area == ApplicationArea.Vehicles;
         var isEcus = area == ApplicationArea.Ecus;
         var isEcuFiles = area == ApplicationArea.EcuFiles;
@@ -131,7 +132,8 @@ public partial class MainWindow : Window
         var isMapWorkspace = area == ApplicationArea.CalibrationPreview;
         var isReports = area == ApplicationArea.Reports;
         var isProgrammers = area == ApplicationArea.Programmers;
-        GenericPanel.Visibility = isVehicles || isEcus || isEcuFiles || isComparison || isMapWorkspace || isReports || isProgrammers ? Visibility.Collapsed : Visibility.Visible;
+        GenericPanel.Visibility = isProjects || isVehicles || isEcus || isEcuFiles || isComparison || isMapWorkspace || isReports || isProgrammers ? Visibility.Collapsed : Visibility.Visible;
+        ProjectsPanel.Visibility = isProjects ? Visibility.Visible : Visibility.Collapsed;
         VehiclesPanel.Visibility = isVehicles ? Visibility.Visible : Visibility.Collapsed;
         EcusPanel.Visibility = isEcus ? Visibility.Visible : Visibility.Collapsed;
         EcuFilesPanel.Visibility = isEcuFiles ? Visibility.Visible : Visibility.Collapsed;
@@ -140,7 +142,11 @@ public partial class MainWindow : Window
         ReportsPanel.Visibility = isReports ? Visibility.Visible : Visibility.Collapsed;
         ProgrammersPanel.Visibility = isProgrammers ? Visibility.Visible : Visibility.Collapsed;
 
-        if (isVehicles)
+        if (isProjects)
+        {
+            _ = LoadProjectsAsync();
+        }
+        else if (isVehicles)
         {
             _ = LoadVehiclesAsync();
         }
@@ -187,6 +193,140 @@ public partial class MainWindow : Window
         return _localizer.Text("Section.FutureBody");
     }
 
+    private async Task LoadProjectsAsync()
+    {
+        try
+        {
+            var projects = await _ecuProjectService.ListAsync();
+            ProjectsGrid.ItemsSource = projects
+                .Select(project => new ProjectListItem(
+                    project.Id,
+                    project.Name,
+                    $"{project.Make} {project.Model} {project.Engine}".Trim(),
+                    project.Versions.Count))
+                .ToArray();
+
+            var vehicles = await _vehicleService.ListAsync();
+            var vehicleItems = vehicles
+                .Select(vehicle => new VehicleSelectionItem(
+                    vehicle.Id,
+                    $"{vehicle.Make} {vehicle.Model} {vehicle.EngineCode}".Trim()))
+                .ToArray();
+            ProjectVehicleSelector.ItemsSource = vehicleItems;
+            ProjectVehicleSelector.SelectedItem ??= vehicleItems.FirstOrDefault();
+            await LoadProjectOriginalFilesAsync();
+        }
+        catch (Exception exception)
+        {
+            _logger.Error("Failed to load ECU projects.", exception);
+            ProjectMessage.Text = _localizer.Text("Projects.LoadFailure");
+        }
+    }
+
+    private async Task LoadProjectOriginalFilesAsync()
+    {
+        if (ProjectVehicleSelector.SelectedItem is not VehicleSelectionItem selectedVehicle)
+        {
+            ProjectOriginalFileSelector.ItemsSource = Array.Empty<EcuFileSelectionItem>();
+            return;
+        }
+
+        var files = await _ecuFileService.ListByVehicleAsync(selectedVehicle.Id);
+        var originalFiles = files
+            .Where(file => file.FileType == EcuFileType.Original)
+            .Select(ToEcuFileSelectionItem)
+            .ToArray();
+
+        ProjectOriginalFileSelector.ItemsSource = originalFiles;
+        ProjectOriginalFileSelector.SelectedItem = originalFiles.FirstOrDefault();
+        if (ProjectNameTextBox.Text.Length == 0)
+        {
+            ProjectNameTextBox.Text = $"{selectedVehicle.DisplayName} project".Trim();
+        }
+    }
+
+    private async void OnProjectVehicleChanged(object sender, SelectionChangedEventArgs e)
+    {
+        await LoadProjectOriginalFilesAsync();
+    }
+
+    private async void OnRefreshProjectsClick(object sender, RoutedEventArgs e)
+    {
+        await LoadProjectsAsync();
+    }
+
+    private async void OnCreateProjectClick(object sender, RoutedEventArgs e)
+    {
+        ProjectMessage.Text = string.Empty;
+        if (ProjectVehicleSelector.SelectedItem is not VehicleSelectionItem selectedVehicle)
+        {
+            ProjectMessage.Text = _localizer.Text("Projects.NoVehicle");
+            return;
+        }
+
+        if (ProjectOriginalFileSelector.SelectedItem is not EcuFileSelectionItem selectedFile)
+        {
+            ProjectMessage.Text = _localizer.Text("Projects.NoOriginalFile");
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(ProjectNameTextBox.Text))
+        {
+            ProjectMessage.Text = _localizer.Text("Projects.NoName");
+            return;
+        }
+
+        var vehicle = await _vehicleService.GetByIdAsync(selectedVehicle.Id);
+        if (vehicle is null)
+        {
+            ProjectMessage.Text = _localizer.Text("Projects.NoVehicle");
+            return;
+        }
+
+        var originalFile = await _ecuFileService.GetByIdAsync(selectedFile.Id);
+        if (originalFile is null)
+        {
+            ProjectMessage.Text = _localizer.Text("Projects.NoOriginalFile");
+            return;
+        }
+
+        var result = await _ecuProjectService.CreateAsync(new EcuProjectCreateRequest(
+            vehicle.Id,
+            originalFile.Id,
+            ProjectNameTextBox.Text.Trim(),
+            vehicle.Make,
+            vehicle.Model,
+            vehicle.Engine,
+            vehicle.Year,
+            "Unknown",
+            null,
+            originalFile.ReadMethod ?? "ManualWorkflowOnly",
+            EmptyToNull(ProjectNotesTextBox.Text),
+            "ui-project"));
+
+        ProjectMessage.Text = result.IsSuccess
+            ? _localizer.Text("Projects.CreateSuccess")
+            : $"{_localizer.Text("Projects.CreateFailure")} {result.ErrorMessage}";
+
+        if (result.IsSuccess)
+        {
+            await LoadProjectsAsync();
+        }
+    }
+
+    private void OnProjectSelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (ProjectsGrid.SelectedItem is not ProjectListItem selectedProject)
+        {
+            return;
+        }
+
+        ProjectMessage.Text = string.Format(
+            _localizer.Text("Projects.Selected"),
+            selectedProject.Name,
+            selectedProject.VersionCount);
+    }
+
     private void OnLanguageChanged(object sender, SelectionChangedEventArgs e)
     {
         if (LanguageSelector.SelectedValue is not string languageCode)
@@ -205,6 +345,17 @@ public partial class MainWindow : Window
         Title = _localizer.Text("App.Title");
         LanguageLabel.Text = _localizer.Text("Language.Label");
         SafeModeFooter.Text = _localizer.Text("Footer.SafeMode");
+        ProjectsListTitle.Text = _localizer.Text("Projects.ListTitle");
+        RefreshProjectsButton.Content = _localizer.Text("Projects.Refresh");
+        ProjectFormTitle.Text = _localizer.Text("Projects.FormTitle");
+        ProjectVehicleLabel.Text = _localizer.Text("Projects.Vehicle");
+        ProjectOriginalFileLabel.Text = _localizer.Text("Projects.OriginalFile");
+        ProjectNameLabel.Text = _localizer.Text("Projects.Name");
+        ProjectNotesLabel.Text = _localizer.Text("Projects.Notes");
+        CreateProjectButton.Content = _localizer.Text("Projects.Create");
+        ProjectNameColumn.Header = _localizer.Text("Projects.Name");
+        ProjectVehicleColumn.Header = _localizer.Text("Projects.Vehicle");
+        ProjectVersionsColumn.Header = _localizer.Text("Projects.Versions");
         RefreshVehicleProfileOptions();
         NewVehicleButton.Content = _localizer.Text("Vehicles.New");
         SaveVehicleButton.Content = _localizer.Text("Vehicles.Save");
@@ -334,6 +485,10 @@ public partial class MainWindow : Window
         else if (_currentArea == ApplicationArea.Ecus)
         {
             _ = LoadEcuVehiclesAsync();
+        }
+        else if (_currentArea == ApplicationArea.Projects)
+        {
+            _ = LoadProjectsAsync();
         }
         else if (_currentArea == ApplicationArea.Comparison)
         {
@@ -1691,6 +1846,8 @@ public partial class MainWindow : Window
 }
 
 public sealed record VehicleListItem(Guid Id, string Make, string Model, string EngineCode, int? Year);
+
+public sealed record ProjectListItem(Guid Id, string Name, string Vehicle, int VersionCount);
 
 public sealed record VehicleProfileOption(string DisplayName, VehicleProfile? Profile);
 

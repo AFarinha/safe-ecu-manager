@@ -85,4 +85,18 @@ public sealed class EcuProjectRepository : IEcuProjectRepository
             .OrderByDescending(project => project.UpdatedAt)
             .ToList();
     }
+
+    public async Task<IReadOnlyList<EcuProject>> ListAsync(CancellationToken cancellationToken = default)
+    {
+        await using var dbContext = _dbContextFactory.Create();
+
+        var projects = await dbContext.EcuProjects
+            .Include(project => project.Versions)
+            .AsNoTracking()
+            .ToListAsync(cancellationToken);
+
+        return projects
+            .OrderByDescending(project => project.UpdatedAt)
+            .ToList();
+    }
 }

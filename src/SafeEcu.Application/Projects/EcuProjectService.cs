@@ -164,6 +164,9 @@ public sealed class EcuProjectService
     public Task<EcuProject?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default) =>
         _projectRepository.GetByIdAsync(id, cancellationToken);
 
+    public Task<IReadOnlyList<EcuProject>> ListAsync(CancellationToken cancellationToken = default) =>
+        _projectRepository.ListAsync(cancellationToken);
+
     public Task<IReadOnlyList<EcuProject>> ListByVehicleAsync(Guid vehicleId, CancellationToken cancellationToken = default) =>
         _projectRepository.ListByVehicleAsync(vehicleId, cancellationToken);
 

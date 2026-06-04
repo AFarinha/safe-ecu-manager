@@ -11,6 +11,7 @@ public sealed class NavigationCatalogTests
         var areas = NavigationCatalog.Sections.Select(section => section.Area).ToArray();
 
         Assert.Contains(ApplicationArea.Dashboard, areas);
+        Assert.Contains(ApplicationArea.Projects, areas);
         Assert.Contains(ApplicationArea.Vehicles, areas);
         Assert.Contains(ApplicationArea.Ecus, areas);
         Assert.Contains(ApplicationArea.EcuFiles, areas);
@@ -33,6 +34,7 @@ public sealed class NavigationCatalogTests
         Assert.Equal(
             [
                 ApplicationArea.Dashboard,
+                ApplicationArea.Projects,
                 ApplicationArea.Vehicles,
                 ApplicationArea.Ecus,
                 ApplicationArea.EcuFiles,

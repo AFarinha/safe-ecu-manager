@@ -7,6 +7,7 @@ public static class NavigationCatalog
     public static IReadOnlyList<NavigationSection> Sections { get; } =
     [
         new(ApplicationArea.Dashboard, "Nav.Dashboard.Title", "Nav.Dashboard.Description", true),
+        new(ApplicationArea.Projects, "Nav.Projects.Title", "Nav.Projects.Description", true),
         new(ApplicationArea.Vehicles, "Nav.Vehicles.Title", "Nav.Vehicles.Description", true),
         new(ApplicationArea.Ecus, "Nav.Ecus.Title", "Nav.Ecus.Description", true),
         new(ApplicationArea.EcuFiles, "Nav.EcuFiles.Title", "Nav.EcuFiles.Description", true),
