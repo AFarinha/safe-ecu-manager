@@ -272,6 +272,7 @@ public partial class MainWindow : Window
         ComparisonComparedAtColumn.Header = _localizer.Text("Comparison.ComparedAt");
         MapWorkspaceVehicleLabel.Text = _localizer.Text("MapWorkspace.Vehicle");
         MapWorkspaceFileLabel.Text = _localizer.Text("MapWorkspace.File");
+        MapWorkspaceModifiedFileLabel.Text = _localizer.Text("MapWorkspace.ModifiedFile");
         MapWorkspaceEcuLabel.Text = _localizer.Text("MapWorkspace.Ecu");
         MapWorkspaceProfileLabel.Text = _localizer.Text("MapWorkspace.Profile");
         MapWorkspacePercentageLabel.Text = _localizer.Text("MapWorkspace.Percentage");
@@ -279,11 +280,14 @@ public partial class MainWindow : Window
         MapWorkspaceLengthLabel.Text = _localizer.Text("MapWorkspace.Length");
         RefreshMapWorkspaceButton.Content = _localizer.Text("MapWorkspace.Refresh");
         PreviewMapWorkspaceButton.Content = _localizer.Text("MapWorkspace.Preview");
+        CompareMapWorkspaceButton.Content = _localizer.Text("MapWorkspace.Compare");
         EvaluatePercentageIntentButton.Content = _localizer.Text("MapWorkspace.EvaluatePercentage");
         MapWorkspaceChartTitle.Text = _localizer.Text("MapWorkspace.Chart");
         MapWorkspaceTableTitle.Text = _localizer.Text("MapWorkspace.Table");
         MapWorkspaceOffsetColumn.Header = _localizer.Text("MapWorkspace.Offset");
-        MapWorkspaceHexColumn.Header = _localizer.Text("MapWorkspace.Hex");
+        MapWorkspaceOriginalHexColumn.Header = _localizer.Text("MapWorkspace.OriginalHex");
+        MapWorkspaceModifiedHexColumn.Header = _localizer.Text("MapWorkspace.ModifiedHex");
+        MapWorkspaceDeltaColumn.Header = _localizer.Text("MapWorkspace.Delta");
         MapWorkspaceRawColumn.Header = _localizer.Text("MapWorkspace.Raw");
         MapWorkspaceScaledColumn.Header = _localizer.Text("MapWorkspace.Scaled");
         MapWorkspaceEditGateText.Text = _localizer.Text("MapWorkspace.EditBlocked");
@@ -672,6 +676,7 @@ public partial class MainWindow : Window
         if (MapWorkspaceVehicleSelector.SelectedItem is not VehicleSelectionItem selectedVehicle)
         {
             MapWorkspaceFileSelector.ItemsSource = Array.Empty<EcuFileSelectionItem>();
+            MapWorkspaceModifiedFileSelector.ItemsSource = Array.Empty<EcuFileSelectionItem>();
             MapWorkspaceGrid.ItemsSource = Array.Empty<MapWorkspacePointListItem>();
             DrawMapWorkspaceChart([]);
             return;
@@ -683,6 +688,10 @@ public partial class MainWindow : Window
             .Where(file => file.FileType == EcuFileType.Original)
             .Select(ToEcuFileSelectionItem)
             .ToArray();
+        var modifiedFiles = files
+            .Where(file => file.FileType == EcuFileType.Modified)
+            .Select(ToEcuFileSelectionItem)
+            .ToArray();
         var ecuItems = ecus
             .Select(ecu => new EcuSelectionItem(
                 ecu.Id,
@@ -691,6 +700,8 @@ public partial class MainWindow : Window
 
         MapWorkspaceFileSelector.ItemsSource = originalFiles;
         MapWorkspaceFileSelector.SelectedItem = originalFiles.FirstOrDefault();
+        MapWorkspaceModifiedFileSelector.ItemsSource = modifiedFiles;
+        MapWorkspaceModifiedFileSelector.SelectedItem = modifiedFiles.FirstOrDefault();
         MapWorkspaceEcuSelector.ItemsSource = ecuItems;
         MapWorkspaceEcuSelector.SelectedItem = ecuItems.FirstOrDefault();
         MapWorkspaceStatusText.Text = _localizer.Text("MapWorkspace.ReadOnlyNotice");
@@ -751,12 +762,79 @@ public partial class MainWindow : Window
             .Select(point => new MapWorkspacePointListItem(
                 $"0x{point.Offset:X8}",
                 $"0x{point.RawByte:X2}",
+                string.Empty,
+                string.Empty,
                 point.RawByte,
                 $"{point.ScaledValue:0.######} {result.Unit}"))
             .ToArray();
 
         MapWorkspaceGrid.ItemsSource = rows;
         DrawMapWorkspaceChart(result.Points);
+        MapWorkspaceStatusText.Text = string.Join(Environment.NewLine, result.Messages);
+        MapWorkspaceEditGateText.Text = string.Join(Environment.NewLine, result.BlockReasons);
+    }
+
+    private async void OnCompareMapWorkspaceClick(object sender, RoutedEventArgs e)
+    {
+        MapWorkspaceStatusText.Text = string.Empty;
+        MapWorkspaceGrid.ItemsSource = Array.Empty<MapWorkspacePointListItem>();
+        DrawMapWorkspaceChart([]);
+
+        if (MapWorkspaceFileSelector.SelectedItem is not EcuFileSelectionItem originalSelection)
+        {
+            MapWorkspaceStatusText.Text = _localizer.Text("MapWorkspace.NoFile");
+            return;
+        }
+
+        if (MapWorkspaceModifiedFileSelector.SelectedItem is not EcuFileSelectionItem modifiedSelection)
+        {
+            MapWorkspaceStatusText.Text = _localizer.Text("MapWorkspace.NoModifiedFile");
+            return;
+        }
+
+        if (!TryParseOffset(MapWorkspaceOffsetTextBox.Text, out var startOffset))
+        {
+            MapWorkspaceStatusText.Text = _localizer.Text("MapWorkspace.InvalidOffset");
+            return;
+        }
+
+        if (!int.TryParse(MapWorkspaceLengthTextBox.Text.Trim(), out var length))
+        {
+            MapWorkspaceStatusText.Text = _localizer.Text("MapWorkspace.InvalidLength");
+            return;
+        }
+
+        var originalFile = await _ecuFileService.GetByIdAsync(originalSelection.Id);
+        var modifiedFile = await _ecuFileService.GetByIdAsync(modifiedSelection.Id);
+        if (originalFile is null || modifiedFile is null)
+        {
+            MapWorkspaceStatusText.Text = _localizer.Text("MapWorkspace.NoFile");
+            return;
+        }
+
+        var result = await _mapWorkspacePreviewService.CompareRawBytesAsync(
+            new MapWorkspaceComparisonRequest(
+                originalFile.FilePath,
+                modifiedFile.FilePath,
+                startOffset,
+                length));
+
+        if (!result.IsSuccess)
+        {
+            MapWorkspaceStatusText.Text = string.Join(Environment.NewLine, result.BlockReasons);
+            return;
+        }
+
+        MapWorkspaceGrid.ItemsSource = result.Points
+            .Select(point => new MapWorkspacePointListItem(
+                $"0x{point.Offset:X8}",
+                FormatNullableByte(point.OriginalByte),
+                FormatNullableByte(point.ModifiedByte),
+                point.Difference?.ToString() ?? "Missing",
+                point.OriginalByte ?? 0,
+                string.Empty))
+            .ToArray();
+        DrawMapWorkspaceComparisonChart(result.Points);
         MapWorkspaceStatusText.Text = string.Join(Environment.NewLine, result.Messages);
         MapWorkspaceEditGateText.Text = string.Join(Environment.NewLine, result.BlockReasons);
     }
@@ -833,6 +911,57 @@ public partial class MainWindow : Window
 
         MapWorkspaceChartCanvas.Children.Add(polyline);
     }
+
+    private void DrawMapWorkspaceComparisonChart(IReadOnlyList<MapWorkspaceComparisonPoint> points)
+    {
+        MapWorkspaceChartCanvas.Children.Clear();
+        if (points.Count == 0)
+        {
+            return;
+        }
+
+        var width = Math.Max(1, MapWorkspaceChartCanvas.ActualWidth);
+        if (width < 10)
+        {
+            width = 640;
+        }
+
+        var height = Math.Max(1, MapWorkspaceChartCanvas.Height);
+        AddComparisonPolyline(points, point => point.OriginalByte, Color.FromRgb(42, 111, 151), width, height);
+        AddComparisonPolyline(points, point => point.ModifiedByte, Color.FromRgb(188, 71, 73), width, height);
+    }
+
+    private void AddComparisonPolyline(
+        IReadOnlyList<MapWorkspaceComparisonPoint> points,
+        Func<MapWorkspaceComparisonPoint, byte?> selector,
+        Color color,
+        double width,
+        double height)
+    {
+        var polyline = new Polyline
+        {
+            Stroke = new SolidColorBrush(color),
+            StrokeThickness = 2
+        };
+
+        for (var index = 0; index < points.Count; index++)
+        {
+            var value = selector(points[index]);
+            if (value is null)
+            {
+                continue;
+            }
+
+            var x = points.Count == 1 ? width / 2 : index * width / (points.Count - 1);
+            var y = height - value.Value * height / 255d;
+            polyline.Points.Add(new Point(x, y));
+        }
+
+        MapWorkspaceChartCanvas.Children.Add(polyline);
+    }
+
+    private static string FormatNullableByte(byte? value) =>
+        value is null ? "Missing" : $"0x{value.Value:X2}";
 
     private static bool TryParseOffset(string value, out long offset)
     {
@@ -1206,7 +1335,9 @@ public sealed record ReportComparisonSelectionItem(Guid Id, string DisplayName);
 
 public sealed record MapWorkspacePointListItem(
     string Offset,
-    string HexByte,
+    string OriginalHex,
+    string ModifiedHex,
+    string Difference,
     int RawValue,
     string ScaledValue);
 

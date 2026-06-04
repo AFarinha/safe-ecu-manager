@@ -656,8 +656,11 @@
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto" />
                             <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
                         </Grid.RowDefinitions>
                         <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="2*" />
+                            <ColumnDefinition Width="16" />
                             <ColumnDefinition Width="2*" />
                             <ColumnDefinition Width="16" />
                             <ColumnDefinition Width="2*" />
@@ -684,21 +687,14 @@
                         </StackPanel>
 
                         <StackPanel Grid.Row="0" Grid.Column="4" Margin="0,0,0,12">
-                            <TextBlock x:Name="MapWorkspaceOffsetLabel" Foreground="{StaticResource MutedTextBrush}" />
-                            <TextBox x:Name="MapWorkspaceOffsetTextBox"
-                                     Text="0"
-                                     Margin="0,4,0,0" />
-                        </StackPanel>
-
-                        <StackPanel Grid.Row="0" Grid.Column="6" Margin="0,0,0,12">
-                            <TextBlock x:Name="MapWorkspaceLengthLabel" Foreground="{StaticResource MutedTextBrush}" />
-                            <TextBox x:Name="MapWorkspaceLengthTextBox"
-                                     Text="128"
-                                     Margin="0,4,0,0" />
+                            <TextBlock x:Name="MapWorkspaceModifiedFileLabel" Foreground="{StaticResource MutedTextBrush}" />
+                            <ComboBox x:Name="MapWorkspaceModifiedFileSelector"
+                                      DisplayMemberPath="DisplayName"
+                                      Margin="0,4,0,0" />
                         </StackPanel>
 
                         <StackPanel Grid.Row="0"
-                                    Grid.Column="7"
+                                    Grid.Column="9"
                                     Orientation="Horizontal"
                                     VerticalAlignment="Bottom"
                                     HorizontalAlignment="Right"
@@ -712,8 +708,13 @@
                                     Click="OnPreviewMapWorkspaceClick"
                                     MinWidth="96"
                                     Padding="14,8"
+                                    Margin="0,0,8,0"
                                     Background="{StaticResource AccentBrush}"
                                     Foreground="White" />
+                            <Button x:Name="CompareMapWorkspaceButton"
+                                    Click="OnCompareMapWorkspaceClick"
+                                    MinWidth="96"
+                                    Padding="14,8" />
                         </StackPanel>
 
                         <StackPanel Grid.Row="1" Grid.Column="0">
@@ -738,8 +739,7 @@
                         </StackPanel>
 
                         <StackPanel Grid.Row="1"
-                                    Grid.Column="6"
-                                    Grid.ColumnSpan="2"
+                                    Grid.Column="9"
                                     Orientation="Horizontal"
                                     VerticalAlignment="Bottom"
                                     HorizontalAlignment="Right"
@@ -748,6 +748,20 @@
                                     Click="OnEvaluatePercentageIntentClick"
                                     MinWidth="120"
                                     Padding="14,8" />
+                        </StackPanel>
+
+                        <StackPanel Grid.Row="2" Grid.Column="0" Margin="0,12,0,0">
+                            <TextBlock x:Name="MapWorkspaceOffsetLabel" Foreground="{StaticResource MutedTextBrush}" />
+                            <TextBox x:Name="MapWorkspaceOffsetTextBox"
+                                     Text="0"
+                                     Margin="0,4,0,0" />
+                        </StackPanel>
+
+                        <StackPanel Grid.Row="2" Grid.Column="2" Margin="0,12,0,0">
+                            <TextBlock x:Name="MapWorkspaceLengthLabel" Foreground="{StaticResource MutedTextBrush}" />
+                            <TextBox x:Name="MapWorkspaceLengthTextBox"
+                                     Text="128"
+                                     Margin="0,4,0,0" />
                         </StackPanel>
                     </Grid>
                 </Border>
@@ -820,7 +834,9 @@
                                       BorderThickness="0">
                                 <DataGrid.Columns>
                                     <DataGridTextColumn x:Name="MapWorkspaceOffsetColumn" Binding="{Binding Offset}" Width="*" />
-                                    <DataGridTextColumn x:Name="MapWorkspaceHexColumn" Binding="{Binding HexByte}" Width="*" />
+                                    <DataGridTextColumn x:Name="MapWorkspaceOriginalHexColumn" Binding="{Binding OriginalHex}" Width="*" />
+                                    <DataGridTextColumn x:Name="MapWorkspaceModifiedHexColumn" Binding="{Binding ModifiedHex}" Width="*" />
+                                    <DataGridTextColumn x:Name="MapWorkspaceDeltaColumn" Binding="{Binding Difference}" Width="*" />
                                     <DataGridTextColumn x:Name="MapWorkspaceRawColumn" Binding="{Binding RawValue}" Width="*" />
                                     <DataGridTextColumn x:Name="MapWorkspaceScaledColumn" Binding="{Binding ScaledValue}" Width="*" />
                                 </DataGrid.Columns>

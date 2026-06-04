@@ -56,6 +56,53 @@ public sealed class MapWorkspacePreviewServiceTests : IDisposable
         Assert.Contains(result.BlockReasons, reason => reason.Contains("not be found", StringComparison.OrdinalIgnoreCase));
     }
 
+    [Fact]
+    public async Task CompareRawBytes_returns_original_modified_and_delta_points()
+    {
+        Directory.CreateDirectory(_testDirectory);
+        var originalPath = Path.Combine(_testDirectory, "original.bin");
+        var modifiedPath = Path.Combine(_testDirectory, "modified.bin");
+        await File.WriteAllBytesAsync(originalPath, [0x10, 0x20, 0x30, 0x40]);
+        await File.WriteAllBytesAsync(modifiedPath, [0x10, 0x22, 0x2F, 0x40]);
+        var service = new MapWorkspacePreviewService();
+
+        var result = await service.CompareRawBytesAsync(new MapWorkspaceComparisonRequest(
+            originalPath,
+            modifiedPath,
+            StartOffset: 1,
+            Length: 2));
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(2, result.DifferenceCount);
+        Assert.Equal(100m, result.PercentChanged);
+        Assert.Equal([1L, 2L], result.Points.Select(point => point.Offset));
+        Assert.Equal([0x20, 0x30], result.Points.Select(point => point.OriginalByte));
+        Assert.Equal([0x22, 0x2F], result.Points.Select(point => point.ModifiedByte));
+        Assert.Equal([2, -1], result.Points.Select(point => point.Difference));
+        Assert.Contains(result.BlockReasons, reason => reason.Contains("read-only", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
+    public async Task CompareRawBytes_rejects_unsafe_preview_length()
+    {
+        Directory.CreateDirectory(_testDirectory);
+        var originalPath = Path.Combine(_testDirectory, "original.bin");
+        var modifiedPath = Path.Combine(_testDirectory, "modified.bin");
+        await File.WriteAllBytesAsync(originalPath, [0x10]);
+        await File.WriteAllBytesAsync(modifiedPath, [0x11]);
+        var service = new MapWorkspacePreviewService();
+
+        var result = await service.CompareRawBytesAsync(new MapWorkspaceComparisonRequest(
+            originalPath,
+            modifiedPath,
+            StartOffset: 0,
+            Length: 1024));
+
+        Assert.False(result.IsSuccess);
+        Assert.Empty(result.Points);
+        Assert.Contains(result.BlockReasons, reason => reason.Contains("512", StringComparison.OrdinalIgnoreCase));
+    }
+
     public void Dispose()
     {
         if (Directory.Exists(_testDirectory))
