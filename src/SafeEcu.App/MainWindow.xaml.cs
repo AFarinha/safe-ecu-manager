@@ -37,6 +37,7 @@ public partial class MainWindow : Window
     private readonly EcuProjectService _ecuProjectService;
     private readonly EcuProjectMapDefinitionService _ecuProjectMapDefinitionService;
     private readonly EcuProjectMapSnapshotService _ecuProjectMapSnapshotService;
+    private readonly EcuProjectWorkflowStatusService _ecuProjectWorkflowStatusService = new();
     private readonly PercentageIntentEngine _percentageIntentEngine;
     private readonly CalibrationProfileCatalog _calibrationProfileCatalog;
     private readonly IReportService _reportService;
@@ -199,11 +200,18 @@ public partial class MainWindow : Window
         {
             var projects = await _ecuProjectService.ListAsync();
             ProjectsGrid.ItemsSource = projects
-                .Select(project => new ProjectListItem(
-                    project.Id,
-                    project.Name,
-                    $"{project.Make} {project.Model} {project.Engine}".Trim(),
-                    project.Versions.Count))
+                .Select(project =>
+                {
+                    var state = _ecuProjectWorkflowStatusService.Evaluate(project);
+                    return new ProjectListItem(
+                        project.Id,
+                        project.Name,
+                        $"{project.Make} {project.Model} {project.Engine}".Trim(),
+                        state.StatusText,
+                        state.NextStep,
+                        project.Versions.Count,
+                        project.MapDefinitions.Count);
+                })
                 .ToArray();
 
             var vehicles = await _vehicleService.ListAsync();
@@ -324,7 +332,10 @@ public partial class MainWindow : Window
         ProjectMessage.Text = string.Format(
             _localizer.Text("Projects.Selected"),
             selectedProject.Name,
-            selectedProject.VersionCount);
+            selectedProject.Status,
+            selectedProject.VersionCount,
+            selectedProject.MapDefinitionCount,
+            selectedProject.NextStep);
     }
 
     private void OnLanguageChanged(object sender, SelectionChangedEventArgs e)
@@ -355,6 +366,7 @@ public partial class MainWindow : Window
         CreateProjectButton.Content = _localizer.Text("Projects.Create");
         ProjectNameColumn.Header = _localizer.Text("Projects.Name");
         ProjectVehicleColumn.Header = _localizer.Text("Projects.Vehicle");
+        ProjectStatusColumn.Header = _localizer.Text("Projects.Status");
         ProjectVersionsColumn.Header = _localizer.Text("Projects.Versions");
         RefreshVehicleProfileOptions();
         NewVehicleButton.Content = _localizer.Text("Vehicles.New");
@@ -1847,7 +1859,14 @@ public partial class MainWindow : Window
 
 public sealed record VehicleListItem(Guid Id, string Make, string Model, string EngineCode, int? Year);
 
-public sealed record ProjectListItem(Guid Id, string Name, string Vehicle, int VersionCount);
+public sealed record ProjectListItem(
+    Guid Id,
+    string Name,
+    string Vehicle,
+    string Status,
+    string NextStep,
+    int VersionCount,
+    int MapDefinitionCount);
 
 public sealed record VehicleProfileOption(string DisplayName, VehicleProfile? Profile);
 

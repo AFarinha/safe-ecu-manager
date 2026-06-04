@@ -144,6 +144,7 @@
                             <DataGrid.Columns>
                                 <DataGridTextColumn x:Name="ProjectNameColumn" Binding="{Binding Name}" Width="2*" />
                                 <DataGridTextColumn x:Name="ProjectVehicleColumn" Binding="{Binding Vehicle}" Width="2*" />
+                                <DataGridTextColumn x:Name="ProjectStatusColumn" Binding="{Binding Status}" Width="*" />
                                 <DataGridTextColumn x:Name="ProjectVersionsColumn" Binding="{Binding VersionCount}" Width="*" />
                             </DataGrid.Columns>
                         </DataGrid>

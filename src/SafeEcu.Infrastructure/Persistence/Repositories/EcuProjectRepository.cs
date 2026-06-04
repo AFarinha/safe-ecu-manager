@@ -65,6 +65,7 @@ public sealed class EcuProjectRepository : IEcuProjectRepository
 
         return await dbContext.EcuProjects
             .Include(project => project.Versions)
+            .Include(project => project.MapDefinitions)
             .AsNoTracking()
             .SingleOrDefaultAsync(project => project.Id == id, cancellationToken);
     }
@@ -77,6 +78,7 @@ public sealed class EcuProjectRepository : IEcuProjectRepository
 
         var projects = await dbContext.EcuProjects
             .Include(project => project.Versions)
+            .Include(project => project.MapDefinitions)
             .Where(project => project.VehicleId == vehicleId)
             .AsNoTracking()
             .ToListAsync(cancellationToken);
@@ -92,6 +94,7 @@ public sealed class EcuProjectRepository : IEcuProjectRepository
 
         var projects = await dbContext.EcuProjects
             .Include(project => project.Versions)
+            .Include(project => project.MapDefinitions)
             .AsNoTracking()
             .ToListAsync(cancellationToken);
 
