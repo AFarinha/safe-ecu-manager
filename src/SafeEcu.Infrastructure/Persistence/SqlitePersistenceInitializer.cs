@@ -25,6 +25,7 @@ public sealed class SqlitePersistenceInitializer : IPersistenceInitializer
             await EnsureCalibrationComparisonColumnsAsync(dbContext, cancellationToken);
             await EnsureAuditLogTableAsync(dbContext, cancellationToken);
             await EnsureSafetyLimitTableAsync(dbContext, cancellationToken);
+            await EnsureEcuProjectTablesAsync(dbContext, cancellationToken);
             _logger.Information("SQLite database initialized.");
 
             return OperationResult.Success();
@@ -154,6 +155,54 @@ public sealed class SqlitePersistenceInitializer : IPersistenceInitializer
             );
             CREATE INDEX IF NOT EXISTS "IX_SafetyLimits_ProfileId" ON "SafetyLimits" ("ProfileId");
             CREATE INDEX IF NOT EXISTS "IX_SafetyLimits_ProfileId_ParameterName" ON "SafetyLimits" ("ProfileId", "ParameterName");
+            """,
+            cancellationToken);
+
+    private static Task EnsureEcuProjectTablesAsync(
+        SafeEcuDbContext dbContext,
+        CancellationToken cancellationToken) =>
+        dbContext.Database.ExecuteSqlRawAsync(
+            """
+            CREATE TABLE IF NOT EXISTS "EcuProjects" (
+                "Id" TEXT NOT NULL CONSTRAINT "PK_EcuProjects" PRIMARY KEY,
+                "VehicleId" TEXT NOT NULL,
+                "EcuInfoId" TEXT NULL,
+                "OriginalFileId" TEXT NOT NULL,
+                "Name" TEXT NOT NULL,
+                "Make" TEXT NOT NULL,
+                "Model" TEXT NOT NULL,
+                "Engine" TEXT NOT NULL,
+                "Year" INTEGER NULL,
+                "EcuType" TEXT NOT NULL,
+                "EcuReference" TEXT NULL,
+                "ReadType" TEXT NOT NULL,
+                "Notes" TEXT NULL,
+                "Tags" TEXT NULL,
+                "CreatedAt" TEXT NOT NULL,
+                "UpdatedAt" TEXT NOT NULL,
+                CONSTRAINT "FK_EcuProjects_Vehicles_VehicleId" FOREIGN KEY ("VehicleId") REFERENCES "Vehicles" ("Id") ON DELETE RESTRICT,
+                CONSTRAINT "FK_EcuProjects_EcuInfos_EcuInfoId" FOREIGN KEY ("EcuInfoId") REFERENCES "EcuInfos" ("Id") ON DELETE RESTRICT,
+                CONSTRAINT "FK_EcuProjects_EcuFiles_OriginalFileId" FOREIGN KEY ("OriginalFileId") REFERENCES "EcuFiles" ("Id") ON DELETE RESTRICT
+            );
+            CREATE TABLE IF NOT EXISTS "EcuProjectFileVersions" (
+                "Id" TEXT NOT NULL CONSTRAINT "PK_EcuProjectFileVersions" PRIMARY KEY,
+                "ProjectId" TEXT NOT NULL,
+                "EcuFileId" TEXT NOT NULL,
+                "Kind" INTEGER NOT NULL,
+                "VersionNumber" INTEGER NOT NULL,
+                "Label" TEXT NOT NULL,
+                "IsOriginalProtected" INTEGER NOT NULL,
+                "Notes" TEXT NULL,
+                "CreatedAt" TEXT NOT NULL,
+                CONSTRAINT "FK_EcuProjectFileVersions_EcuProjects_ProjectId" FOREIGN KEY ("ProjectId") REFERENCES "EcuProjects" ("Id") ON DELETE CASCADE,
+                CONSTRAINT "FK_EcuProjectFileVersions_EcuFiles_EcuFileId" FOREIGN KEY ("EcuFileId") REFERENCES "EcuFiles" ("Id") ON DELETE RESTRICT
+            );
+            CREATE INDEX IF NOT EXISTS "IX_EcuProjects_VehicleId" ON "EcuProjects" ("VehicleId");
+            CREATE INDEX IF NOT EXISTS "IX_EcuProjects_OriginalFileId" ON "EcuProjects" ("OriginalFileId");
+            CREATE INDEX IF NOT EXISTS "IX_EcuProjects_UpdatedAt" ON "EcuProjects" ("UpdatedAt");
+            CREATE INDEX IF NOT EXISTS "IX_EcuProjectFileVersions_ProjectId" ON "EcuProjectFileVersions" ("ProjectId");
+            CREATE INDEX IF NOT EXISTS "IX_EcuProjectFileVersions_EcuFileId" ON "EcuProjectFileVersions" ("EcuFileId");
+            CREATE UNIQUE INDEX IF NOT EXISTS "IX_EcuProjectFileVersions_ProjectId_VersionNumber" ON "EcuProjectFileVersions" ("ProjectId", "VersionNumber");
             """,
             cancellationToken);
 }

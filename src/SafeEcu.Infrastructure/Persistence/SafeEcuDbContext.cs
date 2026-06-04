@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using SafeEcu.Domain.Auditing;
 using SafeEcu.Domain.Calibrations;
+using SafeEcu.Domain.Projects;
 using SafeEcu.Domain.Vehicles;
 
 namespace SafeEcu.Infrastructure.Persistence;
@@ -24,6 +25,10 @@ public sealed class SafeEcuDbContext : DbContext
 
     public DbSet<SafetyLimit> SafetyLimits => Set<SafetyLimit>();
 
+    public DbSet<EcuProject> EcuProjects => Set<EcuProject>();
+
+    public DbSet<EcuProjectFileVersion> EcuProjectFileVersions => Set<EcuProjectFileVersion>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         ConfigureVehicle(modelBuilder);
@@ -32,6 +37,8 @@ public sealed class SafeEcuDbContext : DbContext
         ConfigureCalibrationComparison(modelBuilder);
         ConfigureAuditLogEntry(modelBuilder);
         ConfigureSafetyLimit(modelBuilder);
+        ConfigureEcuProject(modelBuilder);
+        ConfigureEcuProjectFileVersion(modelBuilder);
     }
 
     private static void ConfigureVehicle(ModelBuilder modelBuilder)
@@ -170,5 +177,68 @@ public sealed class SafeEcuDbContext : DbContext
 
         entity.HasIndex(limit => limit.ProfileId);
         entity.HasIndex(limit => new { limit.ProfileId, limit.ParameterName });
+    }
+
+    private static void ConfigureEcuProject(ModelBuilder modelBuilder)
+    {
+        var entity = modelBuilder.Entity<EcuProject>();
+
+        entity.HasKey(project => project.Id);
+        entity.Property(project => project.Name).HasMaxLength(160).IsRequired();
+        entity.Property(project => project.Make).HasMaxLength(80);
+        entity.Property(project => project.Model).HasMaxLength(120);
+        entity.Property(project => project.Engine).HasMaxLength(120);
+        entity.Property(project => project.EcuType).HasMaxLength(120);
+        entity.Property(project => project.EcuReference).HasMaxLength(160);
+        entity.Property(project => project.ReadType).HasMaxLength(80);
+        entity.Property(project => project.Notes).HasMaxLength(2000);
+        entity.Property(project => project.Tags).HasMaxLength(500);
+
+        entity
+            .HasOne(project => project.Vehicle)
+            .WithMany()
+            .HasForeignKey(project => project.VehicleId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        entity
+            .HasOne(project => project.EcuInfo)
+            .WithMany()
+            .HasForeignKey(project => project.EcuInfoId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        entity
+            .HasOne(project => project.OriginalFile)
+            .WithMany()
+            .HasForeignKey(project => project.OriginalFileId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        entity.HasIndex(project => project.VehicleId);
+        entity.HasIndex(project => project.OriginalFileId);
+        entity.HasIndex(project => project.UpdatedAt);
+    }
+
+    private static void ConfigureEcuProjectFileVersion(ModelBuilder modelBuilder)
+    {
+        var entity = modelBuilder.Entity<EcuProjectFileVersion>();
+
+        entity.HasKey(version => version.Id);
+        entity.Property(version => version.Label).HasMaxLength(160).IsRequired();
+        entity.Property(version => version.Notes).HasMaxLength(2000);
+
+        entity
+            .HasOne(version => version.Project)
+            .WithMany(project => project.Versions)
+            .HasForeignKey(version => version.ProjectId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        entity
+            .HasOne(version => version.EcuFile)
+            .WithMany()
+            .HasForeignKey(version => version.EcuFileId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        entity.HasIndex(version => version.ProjectId);
+        entity.HasIndex(version => version.EcuFileId);
+        entity.HasIndex(version => new { version.ProjectId, version.VersionNumber }).IsUnique();
     }
 }
