@@ -711,6 +711,11 @@
                                     Margin="0,0,8,0"
                                     Background="{StaticResource AccentBrush}"
                                     Foreground="White" />
+                            <Button x:Name="HexMapWorkspaceButton"
+                                    Click="OnHexMapWorkspaceClick"
+                                    MinWidth="96"
+                                    Padding="14,8"
+                                    Margin="0,0,8,0" />
                             <Button x:Name="CompareMapWorkspaceButton"
                                     Click="OnCompareMapWorkspaceClick"
                                     MinWidth="96"

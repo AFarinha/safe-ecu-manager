@@ -2,6 +2,8 @@ bin/
 obj/
 logs/
 data/
+backups/
+reports/
 .vs/
 .vscode/
 *.user

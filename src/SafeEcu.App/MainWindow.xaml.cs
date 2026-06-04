@@ -280,6 +280,7 @@ public partial class MainWindow : Window
         MapWorkspaceLengthLabel.Text = _localizer.Text("MapWorkspace.Length");
         RefreshMapWorkspaceButton.Content = _localizer.Text("MapWorkspace.Refresh");
         PreviewMapWorkspaceButton.Content = _localizer.Text("MapWorkspace.Preview");
+        HexMapWorkspaceButton.Content = _localizer.Text("MapWorkspace.HexView");
         CompareMapWorkspaceButton.Content = _localizer.Text("MapWorkspace.Compare");
         EvaluatePercentageIntentButton.Content = _localizer.Text("MapWorkspace.EvaluatePercentage");
         MapWorkspaceChartTitle.Text = _localizer.Text("MapWorkspace.Chart");
@@ -770,6 +771,59 @@ public partial class MainWindow : Window
 
         MapWorkspaceGrid.ItemsSource = rows;
         DrawMapWorkspaceChart(result.Points);
+        MapWorkspaceStatusText.Text = string.Join(Environment.NewLine, result.Messages);
+        MapWorkspaceEditGateText.Text = string.Join(Environment.NewLine, result.BlockReasons);
+    }
+
+    private async void OnHexMapWorkspaceClick(object sender, RoutedEventArgs e)
+    {
+        MapWorkspaceStatusText.Text = string.Empty;
+        MapWorkspaceGrid.ItemsSource = Array.Empty<MapWorkspacePointListItem>();
+        DrawMapWorkspaceChart([]);
+
+        if (MapWorkspaceFileSelector.SelectedItem is not EcuFileSelectionItem selectedFile)
+        {
+            MapWorkspaceStatusText.Text = _localizer.Text("MapWorkspace.NoFile");
+            return;
+        }
+
+        if (!TryParseOffset(MapWorkspaceOffsetTextBox.Text, out var startOffset))
+        {
+            MapWorkspaceStatusText.Text = _localizer.Text("MapWorkspace.InvalidOffset");
+            return;
+        }
+
+        if (!int.TryParse(MapWorkspaceLengthTextBox.Text.Trim(), out var length))
+        {
+            MapWorkspaceStatusText.Text = _localizer.Text("MapWorkspace.InvalidLength");
+            return;
+        }
+
+        var file = await _ecuFileService.GetByIdAsync(selectedFile.Id);
+        if (file is null)
+        {
+            MapWorkspaceStatusText.Text = _localizer.Text("MapWorkspace.NoFile");
+            return;
+        }
+
+        var result = await _mapWorkspacePreviewService.PreviewHexAsync(
+            new MapWorkspaceHexViewRequest(file.FilePath, startOffset, length));
+
+        if (!result.IsSuccess)
+        {
+            MapWorkspaceStatusText.Text = string.Join(Environment.NewLine, result.BlockReasons);
+            return;
+        }
+
+        MapWorkspaceGrid.ItemsSource = result.Rows
+            .Select(row => new MapWorkspacePointListItem(
+                $"0x{row.StartOffset:X8}",
+                string.Join(" ", row.HexBytes),
+                string.Empty,
+                string.Empty,
+                row.HexBytes.Count,
+                row.AsciiPreview))
+            .ToArray();
         MapWorkspaceStatusText.Text = string.Join(Environment.NewLine, result.Messages);
         MapWorkspaceEditGateText.Text = string.Join(Environment.NewLine, result.BlockReasons);
     }
