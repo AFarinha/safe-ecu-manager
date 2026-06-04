@@ -43,4 +43,6 @@ public sealed class EcuProject
     public DateTimeOffset UpdatedAt { get; set; } = DateTimeOffset.UtcNow;
 
     public List<EcuProjectFileVersion> Versions { get; set; } = [];
+
+    public List<EcuProjectMapDefinition> MapDefinitions { get; set; } = [];
 }

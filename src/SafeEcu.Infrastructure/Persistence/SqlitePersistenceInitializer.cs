@@ -26,6 +26,7 @@ public sealed class SqlitePersistenceInitializer : IPersistenceInitializer
             await EnsureAuditLogTableAsync(dbContext, cancellationToken);
             await EnsureSafetyLimitTableAsync(dbContext, cancellationToken);
             await EnsureEcuProjectTablesAsync(dbContext, cancellationToken);
+            await EnsureEcuProjectMapDefinitionTableAsync(dbContext, cancellationToken);
             _logger.Information("SQLite database initialized.");
 
             return OperationResult.Success();
@@ -203,6 +204,50 @@ public sealed class SqlitePersistenceInitializer : IPersistenceInitializer
             CREATE INDEX IF NOT EXISTS "IX_EcuProjectFileVersions_ProjectId" ON "EcuProjectFileVersions" ("ProjectId");
             CREATE INDEX IF NOT EXISTS "IX_EcuProjectFileVersions_EcuFileId" ON "EcuProjectFileVersions" ("EcuFileId");
             CREATE UNIQUE INDEX IF NOT EXISTS "IX_EcuProjectFileVersions_ProjectId_VersionNumber" ON "EcuProjectFileVersions" ("ProjectId", "VersionNumber");
+            """,
+            cancellationToken);
+
+    private static Task EnsureEcuProjectMapDefinitionTableAsync(
+        SafeEcuDbContext dbContext,
+        CancellationToken cancellationToken) =>
+        dbContext.Database.ExecuteSqlRawAsync(
+            """
+            CREATE TABLE IF NOT EXISTS "EcuProjectMapDefinitions" (
+                "Id" TEXT NOT NULL CONSTRAINT "PK_EcuProjectMapDefinitions" PRIMARY KEY,
+                "ProjectId" TEXT NOT NULL,
+                "MapId" TEXT NOT NULL,
+                "DisplayName" TEXT NOT NULL,
+                "ParameterName" TEXT NOT NULL,
+                "Category" TEXT NOT NULL,
+                "StartOffset" INTEGER NOT NULL,
+                "Length" INTEGER NOT NULL,
+                "RowCount" INTEGER NULL,
+                "ColumnCount" INTEGER NULL,
+                "DataType" TEXT NOT NULL,
+                "Endianess" TEXT NOT NULL,
+                "Factor" TEXT NOT NULL,
+                "OffsetCorrection" TEXT NOT NULL,
+                "Unit" TEXT NOT NULL,
+                "XAxisSourceOffset" INTEGER NULL,
+                "XAxisLength" INTEGER NULL,
+                "XAxisUnit" TEXT NULL,
+                "YAxisSourceOffset" INTEGER NULL,
+                "YAxisLength" INTEGER NULL,
+                "YAxisUnit" TEXT NULL,
+                "MinimumValue" TEXT NULL,
+                "MaximumValue" TEXT NULL,
+                "IsEmissionsRelated" INTEGER NOT NULL,
+                "RequiredMapIds" TEXT NOT NULL,
+                "ProfileId" TEXT NOT NULL,
+                "SupportStatus" TEXT NOT NULL,
+                "Notes" TEXT NULL,
+                "CreatedAt" TEXT NOT NULL,
+                "UpdatedAt" TEXT NOT NULL,
+                CONSTRAINT "FK_EcuProjectMapDefinitions_EcuProjects_ProjectId" FOREIGN KEY ("ProjectId") REFERENCES "EcuProjects" ("Id") ON DELETE CASCADE
+            );
+            CREATE INDEX IF NOT EXISTS "IX_EcuProjectMapDefinitions_ProjectId" ON "EcuProjectMapDefinitions" ("ProjectId");
+            CREATE UNIQUE INDEX IF NOT EXISTS "IX_EcuProjectMapDefinitions_ProjectId_MapId" ON "EcuProjectMapDefinitions" ("ProjectId", "MapId");
+            CREATE INDEX IF NOT EXISTS "IX_EcuProjectMapDefinitions_Category" ON "EcuProjectMapDefinitions" ("Category");
             """,
             cancellationToken);
 }

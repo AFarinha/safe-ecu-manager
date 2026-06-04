@@ -29,6 +29,8 @@ public sealed class SafeEcuDbContext : DbContext
 
     public DbSet<EcuProjectFileVersion> EcuProjectFileVersions => Set<EcuProjectFileVersion>();
 
+    public DbSet<EcuProjectMapDefinition> EcuProjectMapDefinitions => Set<EcuProjectMapDefinition>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         ConfigureVehicle(modelBuilder);
@@ -39,6 +41,7 @@ public sealed class SafeEcuDbContext : DbContext
         ConfigureSafetyLimit(modelBuilder);
         ConfigureEcuProject(modelBuilder);
         ConfigureEcuProjectFileVersion(modelBuilder);
+        ConfigureEcuProjectMapDefinition(modelBuilder);
     }
 
     private static void ConfigureVehicle(ModelBuilder modelBuilder)
@@ -240,5 +243,39 @@ public sealed class SafeEcuDbContext : DbContext
         entity.HasIndex(version => version.ProjectId);
         entity.HasIndex(version => version.EcuFileId);
         entity.HasIndex(version => new { version.ProjectId, version.VersionNumber }).IsUnique();
+    }
+
+    private static void ConfigureEcuProjectMapDefinition(ModelBuilder modelBuilder)
+    {
+        var entity = modelBuilder.Entity<EcuProjectMapDefinition>();
+
+        entity.HasKey(definition => definition.Id);
+        entity.Property(definition => definition.MapId).HasMaxLength(160).IsRequired();
+        entity.Property(definition => definition.DisplayName).HasMaxLength(160).IsRequired();
+        entity.Property(definition => definition.ParameterName).HasMaxLength(160).IsRequired();
+        entity.Property(definition => definition.Category).HasMaxLength(80);
+        entity.Property(definition => definition.DataType).HasMaxLength(40);
+        entity.Property(definition => definition.Endianess).HasMaxLength(40);
+        entity.Property(definition => definition.Unit).HasMaxLength(40);
+        entity.Property(definition => definition.XAxisUnit).HasMaxLength(40);
+        entity.Property(definition => definition.YAxisUnit).HasMaxLength(40);
+        entity.Property(definition => definition.RequiredMapIds).HasMaxLength(1000);
+        entity.Property(definition => definition.ProfileId).HasMaxLength(160);
+        entity.Property(definition => definition.SupportStatus).HasMaxLength(40);
+        entity.Property(definition => definition.Notes).HasMaxLength(2000);
+        entity.Property(definition => definition.Factor).HasColumnType("decimal(18,6)");
+        entity.Property(definition => definition.OffsetCorrection).HasColumnType("decimal(18,6)");
+        entity.Property(definition => definition.MinimumValue).HasColumnType("decimal(18,6)");
+        entity.Property(definition => definition.MaximumValue).HasColumnType("decimal(18,6)");
+
+        entity
+            .HasOne(definition => definition.Project)
+            .WithMany(project => project.MapDefinitions)
+            .HasForeignKey(definition => definition.ProjectId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        entity.HasIndex(definition => definition.ProjectId);
+        entity.HasIndex(definition => new { definition.ProjectId, definition.MapId }).IsUnique();
+        entity.HasIndex(definition => definition.Category);
     }
 }
