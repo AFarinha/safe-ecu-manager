@@ -462,7 +462,9 @@ public partial class MainWindow : Window
         MapWorkspaceDataTypeLabel.Text = _localizer.Text("MapWorkspace.DataType");
         MapWorkspaceRowsLabel.Text = _localizer.Text("MapWorkspace.Rows");
         MapWorkspaceColumnsLabel.Text = _localizer.Text("MapWorkspace.Columns");
+        MapWorkspaceDefinedMapLabel.Text = _localizer.Text("MapWorkspace.DefinedMap");
         RefreshMapWorkspaceButton.Content = _localizer.Text("MapWorkspace.Refresh");
+        RefreshMapDefinitionsButton.Content = _localizer.Text("MapWorkspace.RefreshMaps");
         PreviewMapWorkspaceButton.Content = _localizer.Text("MapWorkspace.Preview");
         HexMapWorkspaceButton.Content = _localizer.Text("MapWorkspace.HexView");
         CompareMapWorkspaceButton.Content = _localizer.Text("MapWorkspace.Compare");
@@ -920,6 +922,7 @@ public partial class MainWindow : Window
         MapWorkspaceModifiedFileSelector.SelectedItem = modifiedFiles.FirstOrDefault();
         MapWorkspaceEcuSelector.ItemsSource = ecuItems;
         MapWorkspaceEcuSelector.SelectedItem = ecuItems.FirstOrDefault();
+        await LoadMapWorkspaceDefinitionsForSelectedFileAsync();
         MapWorkspaceStatusText.Text = _localizer.Text("MapWorkspace.ReadOnlyNotice");
         MapWorkspaceEditGateText.Text = _localizer.Text("MapWorkspace.EditBlocked");
     }
@@ -932,6 +935,11 @@ public partial class MainWindow : Window
     private async void OnRefreshMapWorkspaceClick(object sender, RoutedEventArgs e)
     {
         await LoadMapWorkspaceVehiclesAsync();
+    }
+
+    private async void OnRefreshMapDefinitionsClick(object sender, RoutedEventArgs e)
+    {
+        await LoadMapWorkspaceDefinitionsForSelectedFileAsync();
     }
 
     private async void OnPreviewMapWorkspaceClick(object sender, RoutedEventArgs e)
@@ -1123,6 +1131,7 @@ public partial class MainWindow : Window
             ? _localizer.Text("MapWorkspace.MapSaved")
             : $"{_localizer.Text("MapWorkspace.MapSaveFailure")} {result.ErrorMessage}";
         MapWorkspaceEditGateText.Text = _localizer.Text("MapWorkspace.EditBlocked");
+        await LoadMapWorkspaceDefinitionsForSelectedFileAsync();
     }
 
     private async void OnPreviewDefinedMapClick(object sender, RoutedEventArgs e)
@@ -1237,6 +1246,56 @@ public partial class MainWindow : Window
             "manual-ui-project",
             "Unknown",
             "Manual UI candidate. Not verified for calibration export.");
+    }
+
+    private async Task LoadMapWorkspaceDefinitionsForSelectedFileAsync()
+    {
+        MapWorkspaceDefinedMapSelector.ItemsSource = Array.Empty<MapDefinitionSelectionItem>();
+
+        if (MapWorkspaceVehicleSelector.SelectedItem is not VehicleSelectionItem selectedVehicle
+            || MapWorkspaceFileSelector.SelectedItem is not EcuFileSelectionItem selectedFile)
+        {
+            return;
+        }
+
+        var projects = await _ecuProjectService.ListByVehicleAsync(selectedVehicle.Id);
+        var project = projects.FirstOrDefault(item => item.OriginalFileId == selectedFile.Id);
+        if (project is null)
+        {
+            return;
+        }
+
+        var definitions = await _ecuProjectMapDefinitionService.ListByProjectAsync(project.Id);
+        var items = definitions
+            .Select(definition => new MapDefinitionSelectionItem(
+                definition.MapId,
+                $"{definition.MapId} - {definition.DisplayName}",
+                definition.DisplayName,
+                definition.StartOffset,
+                definition.Length,
+                definition.RowCount,
+                definition.ColumnCount,
+                definition.DataType))
+            .ToArray();
+
+        MapWorkspaceDefinedMapSelector.ItemsSource = items;
+        MapWorkspaceDefinedMapSelector.SelectedItem = items.FirstOrDefault();
+    }
+
+    private void OnMapWorkspaceDefinedMapChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (MapWorkspaceDefinedMapSelector.SelectedItem is not MapDefinitionSelectionItem selectedMap)
+        {
+            return;
+        }
+
+        MapWorkspaceMapIdTextBox.Text = selectedMap.MapId;
+        MapWorkspaceMapNameTextBox.Text = selectedMap.Name;
+        MapWorkspaceOffsetTextBox.Text = $"0x{selectedMap.StartOffset:X}";
+        MapWorkspaceLengthTextBox.Text = selectedMap.Length.ToString();
+        MapWorkspaceRowsTextBox.Text = selectedMap.RowCount?.ToString() ?? "1";
+        MapWorkspaceColumnsTextBox.Text = selectedMap.ColumnCount?.ToString() ?? selectedMap.Length.ToString();
+        MapWorkspaceDataTypeSelector.SelectedItem = selectedMap.DataType;
     }
 
     private async Task<EcuProject?> EnsureMapWorkspaceProjectAsync()
@@ -1913,6 +1972,16 @@ public sealed record MapWorkspacePointListItem(
     string Difference,
     int RawValue,
     string ScaledValue);
+
+public sealed record MapDefinitionSelectionItem(
+    string MapId,
+    string DisplayName,
+    string Name,
+    long StartOffset,
+    int Length,
+    int? RowCount,
+    int? ColumnCount,
+    string DataType);
 
 public sealed record EcuSelectionItem(Guid Id, string DisplayName);
 
