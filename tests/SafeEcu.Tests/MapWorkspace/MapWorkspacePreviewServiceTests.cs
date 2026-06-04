@@ -103,6 +103,70 @@ public sealed class MapWorkspacePreviewServiceTests : IDisposable
         Assert.Contains(result.BlockReasons, reason => reason.Contains("512", StringComparison.OrdinalIgnoreCase));
     }
 
+    [Fact]
+    public async Task PreviewHex_returns_offsets_hex_bytes_and_ascii_preview()
+    {
+        Directory.CreateDirectory(_testDirectory);
+        var filePath = Path.Combine(_testDirectory, "original.bin");
+        await File.WriteAllBytesAsync(filePath, [0x41, 0x42, 0x00, 0x7F, 0x43]);
+        var service = new MapWorkspacePreviewService();
+
+        var result = await service.PreviewHexAsync(new MapWorkspaceHexViewRequest(
+            filePath,
+            StartOffset: 1,
+            Length: 4,
+            BytesPerRow: 2));
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(2, result.Rows.Count);
+        Assert.Equal(1, result.Rows[0].StartOffset);
+        Assert.Equal(["42", "00"], result.Rows[0].HexBytes);
+        Assert.Equal("B.", result.Rows[0].AsciiPreview);
+        Assert.Equal(3, result.Rows[1].StartOffset);
+        Assert.Equal(["7F", "43"], result.Rows[1].HexBytes);
+        Assert.Equal(".C", result.Rows[1].AsciiPreview);
+        Assert.Contains(result.BlockReasons, reason => reason.Contains("read-only", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
+    public async Task SearchBytePattern_returns_matching_offsets()
+    {
+        Directory.CreateDirectory(_testDirectory);
+        var filePath = Path.Combine(_testDirectory, "original.bin");
+        await File.WriteAllBytesAsync(filePath, [0x10, 0x20, 0x30, 0x10, 0x20, 0x40]);
+        var service = new MapWorkspacePreviewService();
+
+        var result = await service.SearchBytePatternAsync(new MapWorkspaceBytePatternSearchRequest(
+            filePath,
+            StartOffset: 0,
+            Length: 6,
+            HexPattern: "10 20"));
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal([0L, 3L], result.Matches.Select(match => match.Offset));
+        Assert.Contains(result.Messages, message => message.Contains("2 match", StringComparison.OrdinalIgnoreCase));
+        Assert.Contains(result.BlockReasons, reason => reason.Contains("manually verified", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
+    public async Task SearchBytePattern_rejects_invalid_hex_pattern()
+    {
+        Directory.CreateDirectory(_testDirectory);
+        var filePath = Path.Combine(_testDirectory, "original.bin");
+        await File.WriteAllBytesAsync(filePath, [0x10, 0x20]);
+        var service = new MapWorkspacePreviewService();
+
+        var result = await service.SearchBytePatternAsync(new MapWorkspaceBytePatternSearchRequest(
+            filePath,
+            StartOffset: 0,
+            Length: 2,
+            HexPattern: "10 XYZ"));
+
+        Assert.False(result.IsSuccess);
+        Assert.Empty(result.Matches);
+        Assert.Contains(result.BlockReasons, reason => reason.Contains("two digit", StringComparison.OrdinalIgnoreCase));
+    }
+
     public void Dispose()
     {
         if (Directory.Exists(_testDirectory))
