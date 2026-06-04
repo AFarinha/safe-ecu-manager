@@ -75,6 +75,7 @@ public partial class App : System.Windows.Application
             ecuProjectMapDefinitionRepository,
             _logger);
         var ecuProjectMapSnapshotService = new EcuProjectMapSnapshotService(ecuProjectMapDefinitionRepository);
+        var ecuProjectMapExportGateService = new EcuProjectMapExportGateService(ecuProjectRepository);
         var calibrationProfileCatalog = new CalibrationProfileCatalog();
         var percentageIntentEngine = new PercentageIntentEngine(
             vehicleRepository,
@@ -100,6 +101,7 @@ public partial class App : System.Windows.Application
             ecuProjectService,
             ecuProjectMapDefinitionService,
             ecuProjectMapSnapshotService,
+            ecuProjectMapExportGateService,
             percentageIntentEngine,
             calibrationProfileCatalog,
             reportService);

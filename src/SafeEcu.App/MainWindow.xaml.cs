@@ -39,6 +39,7 @@ public partial class MainWindow : Window
     private readonly EcuProjectMapSnapshotService _ecuProjectMapSnapshotService;
     private readonly EcuProjectWorkflowStatusService _ecuProjectWorkflowStatusService = new();
     private readonly EcuProjectMapEditPreviewService _ecuProjectMapEditPreviewService = new();
+    private readonly EcuProjectMapExportGateService _ecuProjectMapExportGateService;
     private readonly PercentageIntentEngine _percentageIntentEngine;
     private readonly CalibrationProfileCatalog _calibrationProfileCatalog;
     private readonly IReportService _reportService;
@@ -47,6 +48,8 @@ public partial class MainWindow : Window
     private Guid? _selectedEcuId;
     private bool _isLoadingVehicle;
     private bool _isLoadingEcu;
+    private Guid? _lastMapEditProjectId;
+    private EcuProjectMapEditPreviewResult? _lastMapEditPreview;
 
     public MainWindow(
         IAppLogger logger,
@@ -63,6 +66,7 @@ public partial class MainWindow : Window
         EcuProjectService ecuProjectService,
         EcuProjectMapDefinitionService ecuProjectMapDefinitionService,
         EcuProjectMapSnapshotService ecuProjectMapSnapshotService,
+        EcuProjectMapExportGateService ecuProjectMapExportGateService,
         PercentageIntentEngine percentageIntentEngine,
         CalibrationProfileCatalog calibrationProfileCatalog,
         IReportService reportService)
@@ -81,6 +85,7 @@ public partial class MainWindow : Window
         _ecuProjectService = ecuProjectService;
         _ecuProjectMapDefinitionService = ecuProjectMapDefinitionService;
         _ecuProjectMapSnapshotService = ecuProjectMapSnapshotService;
+        _ecuProjectMapExportGateService = ecuProjectMapExportGateService;
         _percentageIntentEngine = percentageIntentEngine;
         _calibrationProfileCatalog = calibrationProfileCatalog;
         _reportService = reportService;
@@ -482,6 +487,7 @@ public partial class MainWindow : Window
         AddMapDefinitionButton.Content = _localizer.Text("MapWorkspace.AddMap");
         PreviewDefinedMapButton.Content = _localizer.Text("MapWorkspace.PreviewMap");
         PreviewMapEditButton.Content = _localizer.Text("MapWorkspace.PreviewEdit");
+        CheckExportReadinessButton.Content = _localizer.Text("MapWorkspace.CheckExport");
         EvaluatePercentageIntentButton.Content = _localizer.Text("MapWorkspace.EvaluatePercentage");
         MapWorkspaceChartTitle.Text = _localizer.Text("MapWorkspace.Chart");
         MapWorkspaceTableTitle.Text = _localizer.Text("MapWorkspace.Table");
@@ -1199,6 +1205,8 @@ public partial class MainWindow : Window
         MapWorkspaceStatusText.Text = string.Empty;
         MapWorkspaceGrid.ItemsSource = Array.Empty<MapWorkspacePointListItem>();
         DrawMapWorkspaceChart([]);
+        _lastMapEditPreview = null;
+        _lastMapEditProjectId = null;
 
         var snapshot = await CreateSelectedMapSnapshotAsync();
         if (snapshot is null)
@@ -1252,10 +1260,36 @@ public partial class MainWindow : Window
             .ToArray();
 
         DrawMapWorkspaceEditPreviewChart(result.Cells);
+        _lastMapEditPreview = result;
         MapWorkspaceStatusText.Text = result.IsAllowed
             ? string.Join(Environment.NewLine, result.Messages)
             : string.Join(Environment.NewLine, result.BlockReasons);
         MapWorkspaceEditGateText.Text = string.Join(Environment.NewLine, result.BlockReasons);
+    }
+
+    private async void OnCheckExportReadinessClick(object sender, RoutedEventArgs e)
+    {
+        if (_lastMapEditPreview is null || _lastMapEditProjectId is null)
+        {
+            MapWorkspaceStatusText.Text = _localizer.Text("MapWorkspace.NoEditPreview");
+            MapWorkspaceEditGateText.Text = _localizer.Text("MapWorkspace.EditBlocked");
+            return;
+        }
+
+        var result = await _ecuProjectMapExportGateService.EvaluateAsync(new EcuProjectMapExportGateRequest(
+            _lastMapEditProjectId.Value,
+            _lastMapEditPreview,
+            ChecksumSupported: false,
+            ChecksumWillBeRecalculated: false,
+            ExplicitUserConfirmation: false,
+            SupportStatus: "Unknown"));
+
+        MapWorkspaceStatusText.Text = result.CanExport
+            ? string.Join(Environment.NewLine, result.Messages)
+            : _localizer.Text("MapWorkspace.ExportBlocked");
+        MapWorkspaceEditGateText.Text = result.CanExport
+            ? string.Join(Environment.NewLine, result.Messages)
+            : string.Join(Environment.NewLine, result.BlockReasons);
     }
 
     private async Task<EcuProjectMapDefinitionCreateRequest?> TryBuildMapDefinitionRequestAsync()
@@ -1331,6 +1365,8 @@ public partial class MainWindow : Window
         {
             return null;
         }
+
+        _lastMapEditProjectId = project.Id;
 
         if (MapWorkspaceFileSelector.SelectedItem is not EcuFileSelectionItem selectedFile)
         {
