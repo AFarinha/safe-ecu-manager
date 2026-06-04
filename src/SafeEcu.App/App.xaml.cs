@@ -7,6 +7,7 @@ using SafeEcu.Application.Localization;
 using SafeEcu.Application.MapWorkspace;
 using SafeEcu.Application.PercentageIntent;
 using SafeEcu.Application.Programmers;
+using SafeEcu.Application.Projects;
 using SafeEcu.Application.Vehicles;
 using SafeEcu.Infrastructure.Files;
 using SafeEcu.Infrastructure.Logging;
@@ -64,8 +65,16 @@ public partial class App : System.Windows.Application
             new Sha256FileHashService(),
             _logger);
         var comparisonRepository = new CalibrationComparisonRepository(dbContextFactory);
+        var ecuProjectRepository = new EcuProjectRepository(dbContextFactory);
+        var ecuProjectMapDefinitionRepository = new EcuProjectMapDefinitionRepository(dbContextFactory);
         var binaryComparisonService = new BinaryComparisonService(ecuFileRepository, comparisonRepository, _logger);
         var mapWorkspacePreviewService = new MapWorkspacePreviewService();
+        var ecuProjectService = new EcuProjectService(ecuProjectRepository, ecuFileRepository, _logger);
+        var ecuProjectMapDefinitionService = new EcuProjectMapDefinitionService(
+            ecuProjectRepository,
+            ecuProjectMapDefinitionRepository,
+            _logger);
+        var ecuProjectMapSnapshotService = new EcuProjectMapSnapshotService(ecuProjectMapDefinitionRepository);
         var calibrationProfileCatalog = new CalibrationProfileCatalog();
         var percentageIntentEngine = new PercentageIntentEngine(
             vehicleRepository,
@@ -88,6 +97,9 @@ public partial class App : System.Windows.Application
             ecuFileService,
             binaryComparisonService,
             mapWorkspacePreviewService,
+            ecuProjectService,
+            ecuProjectMapDefinitionService,
+            ecuProjectMapSnapshotService,
             percentageIntentEngine,
             calibrationProfileCatalog,
             reportService);

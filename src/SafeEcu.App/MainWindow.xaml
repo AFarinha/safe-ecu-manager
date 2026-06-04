@@ -395,6 +395,7 @@
                             <RowDefinition Height="Auto" />
                             <RowDefinition Height="Auto" />
                             <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
                         </Grid.RowDefinitions>
 
                         <StackPanel Grid.Row="0" Grid.Column="0" Margin="0,0,0,12">
@@ -767,6 +768,57 @@
                             <TextBox x:Name="MapWorkspaceLengthTextBox"
                                      Text="128"
                                      Margin="0,4,0,0" />
+                        </StackPanel>
+
+                        <StackPanel Grid.Row="3" Grid.Column="0" Margin="0,12,0,0">
+                            <TextBlock x:Name="MapWorkspaceMapIdLabel" Foreground="{StaticResource MutedTextBrush}" />
+                            <TextBox x:Name="MapWorkspaceMapIdTextBox"
+                                     Text="manual-map-1"
+                                     Margin="0,4,0,0" />
+                        </StackPanel>
+
+                        <StackPanel Grid.Row="3" Grid.Column="2" Margin="0,12,0,0">
+                            <TextBlock x:Name="MapWorkspaceMapNameLabel" Foreground="{StaticResource MutedTextBrush}" />
+                            <TextBox x:Name="MapWorkspaceMapNameTextBox"
+                                     Text="Manual candidate map"
+                                     Margin="0,4,0,0" />
+                        </StackPanel>
+
+                        <StackPanel Grid.Row="3" Grid.Column="4" Margin="0,12,0,0">
+                            <TextBlock x:Name="MapWorkspaceDataTypeLabel" Foreground="{StaticResource MutedTextBrush}" />
+                            <ComboBox x:Name="MapWorkspaceDataTypeSelector"
+                                      Margin="0,4,0,0" />
+                        </StackPanel>
+
+                        <StackPanel Grid.Row="3" Grid.Column="6" Margin="0,12,0,0">
+                            <TextBlock x:Name="MapWorkspaceRowsLabel" Foreground="{StaticResource MutedTextBrush}" />
+                            <TextBox x:Name="MapWorkspaceRowsTextBox"
+                                     Text="1"
+                                     Margin="0,4,0,0" />
+                        </StackPanel>
+
+                        <StackPanel Grid.Row="3" Grid.Column="8" Margin="0,12,0,0">
+                            <TextBlock x:Name="MapWorkspaceColumnsLabel" Foreground="{StaticResource MutedTextBrush}" />
+                            <TextBox x:Name="MapWorkspaceColumnsTextBox"
+                                     Text="16"
+                                     Margin="0,4,0,0" />
+                        </StackPanel>
+
+                        <StackPanel Grid.Row="3"
+                                    Grid.Column="9"
+                                    Orientation="Horizontal"
+                                    VerticalAlignment="Bottom"
+                                    HorizontalAlignment="Right"
+                                    Margin="16,12,0,0">
+                            <Button x:Name="AddMapDefinitionButton"
+                                    Click="OnAddMapDefinitionClick"
+                                    MinWidth="120"
+                                    Padding="14,8"
+                                    Margin="0,0,8,0" />
+                            <Button x:Name="PreviewDefinedMapButton"
+                                    Click="OnPreviewDefinedMapClick"
+                                    MinWidth="120"
+                                    Padding="14,8" />
                         </StackPanel>
                     </Grid>
                 </Border>
