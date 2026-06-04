@@ -47,4 +47,17 @@ public sealed class VehicleRepository : IVehicleRepository
             .AsNoTracking()
             .ToListAsync(cancellationToken);
     }
+
+    public async Task DeleteAsync(Guid id, CancellationToken cancellationToken = default)
+    {
+        await using var dbContext = _dbContextFactory.Create();
+        var vehicle = await dbContext.Vehicles.SingleOrDefaultAsync(vehicle => vehicle.Id == id, cancellationToken);
+        if (vehicle is null)
+        {
+            return;
+        }
+
+        dbContext.Vehicles.Remove(vehicle);
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
 }

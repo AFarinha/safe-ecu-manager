@@ -11,4 +11,6 @@ public interface IEcuFileRepository
     Task<EcuFile?> GetBySha256HashAsync(string sha256Hash, CancellationToken cancellationToken = default);
 
     Task<IReadOnlyList<EcuFile>> ListByVehicleAsync(Guid vehicleId, CancellationToken cancellationToken = default);
+
+    Task DeleteAsync(Guid id, CancellationToken cancellationToken = default);
 }

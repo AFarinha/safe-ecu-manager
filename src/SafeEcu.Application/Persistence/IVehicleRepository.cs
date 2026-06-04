@@ -11,4 +11,6 @@ public interface IVehicleRepository
     Task<Vehicle?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default);
 
     Task<IReadOnlyList<Vehicle>> ListAsync(CancellationToken cancellationToken = default);
+
+    Task DeleteAsync(Guid id, CancellationToken cancellationToken = default);
 }

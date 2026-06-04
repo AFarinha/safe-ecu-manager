@@ -176,8 +176,12 @@
                                     <Button x:Name="SaveVehicleButton"
                                             Click="OnSaveVehicleClick"
                                             Padding="14,8"
+                                            Margin="0,0,8,0"
                                             Background="{StaticResource AccentBrush}"
                                             Foreground="White" />
+                                    <Button x:Name="DeleteVehicleButton"
+                                            Click="OnDeleteVehicleClick"
+                                            Padding="14,8" />
                                 </StackPanel>
                             </DockPanel>
 
@@ -310,8 +314,12 @@
                                     <Button x:Name="SaveEcuButton"
                                             Click="OnSaveEcuClick"
                                             Padding="14,8"
+                                            Margin="0,0,8,0"
                                             Background="{StaticResource AccentBrush}"
                                             Foreground="White" />
+                                    <Button x:Name="DeleteEcuButton"
+                                            Click="OnDeleteEcuClick"
+                                            Padding="14,8" />
                                 </StackPanel>
                             </DockPanel>
 
@@ -451,8 +459,12 @@
                             <Button x:Name="ImportEcuFileButton"
                                     Click="OnImportEcuFileClick"
                                     Padding="14,8"
+                                    Margin="0,0,8,0"
                                     Background="{StaticResource AccentBrush}"
                                     Foreground="White" />
+                            <Button x:Name="DeleteEcuFileButton"
+                                    Click="OnDeleteEcuFileClick"
+                                    Padding="14,8" />
                         </StackPanel>
                     </Grid>
                 </Border>

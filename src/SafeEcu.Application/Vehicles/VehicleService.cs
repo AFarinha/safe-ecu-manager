@@ -78,6 +78,26 @@ public sealed class VehicleService
     public Task<IReadOnlyList<Vehicle>> ListAsync(CancellationToken cancellationToken = default) =>
         _vehicleRepository.ListAsync(cancellationToken);
 
+    public async Task<OperationResult> DeleteAsync(Guid id, CancellationToken cancellationToken = default)
+    {
+        if (id == Guid.Empty)
+        {
+            return OperationResult.Failure("Vehicle id is required.");
+        }
+
+        try
+        {
+            await _vehicleRepository.DeleteAsync(id, cancellationToken);
+            _logger.Information($"Vehicle deleted: {id}.");
+            return OperationResult.Success();
+        }
+        catch (Exception exception)
+        {
+            _logger.Warning($"Vehicle delete blocked: {id}. {exception.Message}");
+            return OperationResult.Failure("Vehicle could not be deleted because it is linked to ECU records, files, projects or audit history.");
+        }
+    }
+
     private static OperationResult Validate(Vehicle vehicle)
     {
         if (string.IsNullOrWhiteSpace(vehicle.Make))

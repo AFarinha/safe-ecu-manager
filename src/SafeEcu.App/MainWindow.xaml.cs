@@ -208,6 +208,7 @@ public partial class MainWindow : Window
         RefreshVehicleProfileOptions();
         NewVehicleButton.Content = _localizer.Text("Vehicles.New");
         SaveVehicleButton.Content = _localizer.Text("Vehicles.Save");
+        DeleteVehicleButton.Content = _localizer.Text("Common.Delete");
         RefreshVehiclesButton.Content = _localizer.Text("Vehicles.Refresh");
         VehiclesListTitle.Text = _localizer.Text("Vehicles.ListTitle");
         VehiclesEmptyText.Text = _localizer.Text("Vehicles.Empty");
@@ -231,6 +232,7 @@ public partial class MainWindow : Window
         EcusListTitle.Text = _localizer.Text("Ecus.ListTitle");
         NewEcuButton.Content = _localizer.Text("Ecus.New");
         SaveEcuButton.Content = _localizer.Text("Ecus.Save");
+        DeleteEcuButton.Content = _localizer.Text("Common.Delete");
         RefreshEcusButton.Content = _localizer.Text("Ecus.Refresh");
         EcuManufacturerLabel.Text = _localizer.Text("Ecus.Manufacturer");
         EcuFamilyLabel.Text = _localizer.Text("Ecus.Family");
@@ -253,6 +255,7 @@ public partial class MainWindow : Window
         EcuFileNotesLabel.Text = _localizer.Text("EcuFiles.Notes");
         SelectEcuFileButton.Content = _localizer.Text("EcuFiles.SelectFile");
         ImportEcuFileButton.Content = _localizer.Text("EcuFiles.Import");
+        DeleteEcuFileButton.Content = _localizer.Text("Common.Delete");
         RefreshEcuFilesButton.Content = _localizer.Text("EcuFiles.Refresh");
         EcuFilesListTitle.Text = _localizer.Text("EcuFiles.ImportedFiles");
         EcuFileNameColumn.Header = _localizer.Text("EcuFiles.FileName");
@@ -439,6 +442,31 @@ public partial class MainWindow : Window
         {
             _selectedEcuId = result.Value.Id;
             await LoadEcusForSelectedVehicleAsync();
+        }
+    }
+
+    private async void OnDeleteEcuClick(object sender, RoutedEventArgs e)
+    {
+        EcuMessage.Text = string.Empty;
+        if (_selectedEcuId is null)
+        {
+            EcuMessage.Text = _localizer.Text("Ecus.NoSelection");
+            return;
+        }
+
+        if (!ConfirmDelete())
+        {
+            return;
+        }
+
+        var result = await _ecuInfoService.DeleteAsync(_selectedEcuId.Value);
+        EcuMessage.Text = result.IsSuccess
+            ? _localizer.Text("Ecus.DeleteSuccess")
+            : $"{_localizer.Text("Ecus.DeleteFailure")} {result.ErrorMessage}";
+        if (result.IsSuccess)
+        {
+            _selectedEcuId = null;
+            await LoadEcuVehiclesAsync();
         }
     }
 
@@ -1320,6 +1348,7 @@ public partial class MainWindow : Window
         var files = await _ecuFileService.ListByVehicleAsync(selectedVehicle.Id);
         EcuFilesGrid.ItemsSource = files
             .Select(file => new EcuFileListItem(
+                file.Id,
                 file.FileName,
                 file.FileType.ToString(),
                 file.SizeBytes,
@@ -1387,6 +1416,30 @@ public partial class MainWindow : Window
             ? _localizer.Text("EcuFiles.ImportSuccess")
             : $"{_localizer.Text("EcuFiles.ImportFailure")} {result.ErrorMessage}";
 
+        if (result.IsSuccess)
+        {
+            await LoadEcuFilesForSelectedVehicleAsync();
+        }
+    }
+
+    private async void OnDeleteEcuFileClick(object sender, RoutedEventArgs e)
+    {
+        EcuFileMessage.Text = string.Empty;
+        if (EcuFilesGrid.SelectedItem is not EcuFileListItem selectedFile)
+        {
+            EcuFileMessage.Text = _localizer.Text("EcuFiles.NoSelection");
+            return;
+        }
+
+        if (!ConfirmDelete())
+        {
+            return;
+        }
+
+        var result = await _ecuFileService.DeleteAsync(selectedFile.Id);
+        EcuFileMessage.Text = result.IsSuccess
+            ? _localizer.Text("EcuFiles.DeleteSuccess")
+            : $"{_localizer.Text("EcuFiles.DeleteFailure")} {result.ErrorMessage}";
         if (result.IsSuccess)
         {
             await LoadEcuFilesForSelectedVehicleAsync();
@@ -1475,6 +1528,31 @@ public partial class MainWindow : Window
         if (result.IsSuccess && result.Value is not null)
         {
             _selectedVehicleId = result.Value.Id;
+            await LoadVehiclesAsync();
+        }
+    }
+
+    private async void OnDeleteVehicleClick(object sender, RoutedEventArgs e)
+    {
+        VehicleMessage.Text = string.Empty;
+        if (_selectedVehicleId is null)
+        {
+            VehicleMessage.Text = _localizer.Text("Vehicles.NoSelection");
+            return;
+        }
+
+        if (!ConfirmDelete())
+        {
+            return;
+        }
+
+        var result = await _vehicleService.DeleteAsync(_selectedVehicleId.Value);
+        VehicleMessage.Text = result.IsSuccess
+            ? _localizer.Text("Vehicles.DeleteSuccess")
+            : $"{_localizer.Text("Vehicles.DeleteFailure")} {result.ErrorMessage}";
+        if (result.IsSuccess)
+        {
+            _selectedVehicleId = null;
             await LoadVehiclesAsync();
         }
     }
@@ -1603,6 +1681,13 @@ public partial class MainWindow : Window
 
     private string FormatBoolean(bool value) =>
         value ? _localizer.Text("Common.Yes") : _localizer.Text("Common.No");
+
+    private bool ConfirmDelete() =>
+        MessageBox.Show(
+            _localizer.Text("Common.DeleteConfirm"),
+            _localizer.Text("Common.Delete"),
+            MessageBoxButton.YesNo,
+            MessageBoxImage.Warning) == MessageBoxResult.Yes;
 }
 
 public sealed record VehicleListItem(Guid Id, string Make, string Model, string EngineCode, int? Year);
@@ -1623,6 +1708,7 @@ public sealed record ProgrammerCapabilityListItem(
     string Notes);
 
 public sealed record EcuFileListItem(
+    Guid Id,
     string FileName,
     string FileType,
     long SizeBytes,

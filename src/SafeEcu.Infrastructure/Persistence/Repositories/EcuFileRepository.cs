@@ -55,4 +55,17 @@ public sealed class EcuFileRepository : IEcuFileRepository
             .OrderByDescending(file => file.ImportedAt)
             .ToList();
     }
+
+    public async Task DeleteAsync(Guid id, CancellationToken cancellationToken = default)
+    {
+        await using var dbContext = _dbContextFactory.Create();
+        var ecuFile = await dbContext.EcuFiles.SingleOrDefaultAsync(file => file.Id == id, cancellationToken);
+        if (ecuFile is null)
+        {
+            return;
+        }
+
+        dbContext.EcuFiles.Remove(ecuFile);
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
 }

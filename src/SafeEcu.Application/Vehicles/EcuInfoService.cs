@@ -80,6 +80,26 @@ public sealed class EcuInfoService
     public Task<IReadOnlyList<EcuInfo>> ListByVehicleAsync(Guid vehicleId, CancellationToken cancellationToken = default) =>
         _ecuInfoRepository.ListByVehicleAsync(vehicleId, cancellationToken);
 
+    public async Task<OperationResult> DeleteAsync(Guid id, CancellationToken cancellationToken = default)
+    {
+        if (id == Guid.Empty)
+        {
+            return OperationResult.Failure("ECU/EDU id is required.");
+        }
+
+        try
+        {
+            await _ecuInfoRepository.DeleteAsync(id, cancellationToken);
+            _logger.Information($"ECU info deleted: {id}.");
+            return OperationResult.Success();
+        }
+        catch (Exception exception)
+        {
+            _logger.Warning($"ECU info delete blocked: {id}. {exception.Message}");
+            return OperationResult.Failure("ECU/EDU could not be deleted because it is linked to files, projects or audit history.");
+        }
+    }
+
     public EcuIdentificationResult EvaluateIdentification(EcuInfo ecuInfo) =>
         _identificationService.Evaluate(ecuInfo);
 

@@ -11,4 +11,6 @@ public interface IEcuInfoRepository
     Task<EcuInfo?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default);
 
     Task<IReadOnlyList<EcuInfo>> ListByVehicleAsync(Guid vehicleId, CancellationToken cancellationToken = default);
+
+    Task DeleteAsync(Guid id, CancellationToken cancellationToken = default);
 }

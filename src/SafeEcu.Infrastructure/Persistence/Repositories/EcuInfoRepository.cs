@@ -49,4 +49,17 @@ public sealed class EcuInfoRepository : IEcuInfoRepository
             .AsNoTracking()
             .ToListAsync(cancellationToken);
     }
+
+    public async Task DeleteAsync(Guid id, CancellationToken cancellationToken = default)
+    {
+        await using var dbContext = _dbContextFactory.Create();
+        var ecuInfo = await dbContext.EcuInfos.SingleOrDefaultAsync(ecu => ecu.Id == id, cancellationToken);
+        if (ecuInfo is null)
+        {
+            return;
+        }
+
+        dbContext.EcuInfos.Remove(ecuInfo);
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
 }

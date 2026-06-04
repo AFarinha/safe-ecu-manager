@@ -48,4 +48,24 @@ public sealed class EcuFileService
 
     public Task<EcuFile?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default) =>
         _ecuFileRepository.GetByIdAsync(id, cancellationToken);
+
+    public async Task<OperationResult> DeleteAsync(Guid id, CancellationToken cancellationToken = default)
+    {
+        if (id == Guid.Empty)
+        {
+            return OperationResult.Failure("ECU file id is required.");
+        }
+
+        try
+        {
+            await _ecuFileRepository.DeleteAsync(id, cancellationToken);
+            _logger.Information($"ECU file metadata deleted: {id}.");
+            return OperationResult.Success();
+        }
+        catch (Exception exception)
+        {
+            _logger.Warning($"ECU file delete blocked: {id}. {exception.Message}");
+            return OperationResult.Failure("ECU file metadata could not be deleted because it is linked to comparisons, projects or reports.");
+        }
+    }
 }
