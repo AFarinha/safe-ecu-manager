@@ -38,6 +38,7 @@ public partial class MainWindow : Window
     private readonly EcuProjectMapDefinitionService _ecuProjectMapDefinitionService;
     private readonly EcuProjectMapSnapshotService _ecuProjectMapSnapshotService;
     private readonly EcuProjectWorkflowStatusService _ecuProjectWorkflowStatusService = new();
+    private readonly EcuProjectMapEditPreviewService _ecuProjectMapEditPreviewService = new();
     private readonly PercentageIntentEngine _percentageIntentEngine;
     private readonly CalibrationProfileCatalog _calibrationProfileCatalog;
     private readonly IReportService _reportService;
@@ -101,6 +102,8 @@ public partial class MainWindow : Window
         MapWorkspaceProfileSelector.ItemsSource = BuildCalibrationProfileOptions();
         MapWorkspaceDataTypeSelector.ItemsSource = new[] { "UInt8", "Int8", "UInt16", "Int16", "UInt32", "Int32" };
         MapWorkspaceDataTypeSelector.SelectedItem = "UInt8";
+        MapWorkspaceEditOperationSelector.ItemsSource = BuildMapEditOperationOptions();
+        MapWorkspaceEditOperationSelector.SelectedItem = ((IReadOnlyList<MapEditOperationOption>)MapWorkspaceEditOperationSelector.ItemsSource)[0];
 
         RefreshLocalizedText();
         ShowSection(ApplicationArea.Dashboard);
@@ -356,6 +359,10 @@ public partial class MainWindow : Window
         Title = _localizer.Text("App.Title");
         LanguageLabel.Text = _localizer.Text("Language.Label");
         SafeModeFooter.Text = _localizer.Text("Footer.SafeMode");
+        var selectedOperation = (MapWorkspaceEditOperationSelector.SelectedItem as MapEditOperationOption)?.Operation;
+        var operationOptions = BuildMapEditOperationOptions();
+        MapWorkspaceEditOperationSelector.ItemsSource = operationOptions;
+        MapWorkspaceEditOperationSelector.SelectedItem = operationOptions.FirstOrDefault(option => option.Operation == selectedOperation) ?? operationOptions[0];
         ProjectsListTitle.Text = _localizer.Text("Projects.ListTitle");
         RefreshProjectsButton.Content = _localizer.Text("Projects.Refresh");
         ProjectFormTitle.Text = _localizer.Text("Projects.FormTitle");
@@ -463,6 +470,10 @@ public partial class MainWindow : Window
         MapWorkspaceRowsLabel.Text = _localizer.Text("MapWorkspace.Rows");
         MapWorkspaceColumnsLabel.Text = _localizer.Text("MapWorkspace.Columns");
         MapWorkspaceDefinedMapLabel.Text = _localizer.Text("MapWorkspace.DefinedMap");
+        MapWorkspaceEditOperationLabel.Text = _localizer.Text("MapWorkspace.EditOperation");
+        MapWorkspaceEditValueLabel.Text = _localizer.Text("MapWorkspace.EditValue");
+        MapWorkspaceMinAllowedLabel.Text = _localizer.Text("MapWorkspace.MinAllowed");
+        MapWorkspaceMaxAllowedLabel.Text = _localizer.Text("MapWorkspace.MaxAllowed");
         RefreshMapWorkspaceButton.Content = _localizer.Text("MapWorkspace.Refresh");
         RefreshMapDefinitionsButton.Content = _localizer.Text("MapWorkspace.RefreshMaps");
         PreviewMapWorkspaceButton.Content = _localizer.Text("MapWorkspace.Preview");
@@ -470,6 +481,7 @@ public partial class MainWindow : Window
         CompareMapWorkspaceButton.Content = _localizer.Text("MapWorkspace.Compare");
         AddMapDefinitionButton.Content = _localizer.Text("MapWorkspace.AddMap");
         PreviewDefinedMapButton.Content = _localizer.Text("MapWorkspace.PreviewMap");
+        PreviewMapEditButton.Content = _localizer.Text("MapWorkspace.PreviewEdit");
         EvaluatePercentageIntentButton.Content = _localizer.Text("MapWorkspace.EvaluatePercentage");
         MapWorkspaceChartTitle.Text = _localizer.Text("MapWorkspace.Chart");
         MapWorkspaceTableTitle.Text = _localizer.Text("MapWorkspace.Table");
@@ -1182,6 +1194,70 @@ public partial class MainWindow : Window
         MapWorkspaceEditGateText.Text = string.Join(Environment.NewLine, result.BlockReasons);
     }
 
+    private async void OnPreviewMapEditClick(object sender, RoutedEventArgs e)
+    {
+        MapWorkspaceStatusText.Text = string.Empty;
+        MapWorkspaceGrid.ItemsSource = Array.Empty<MapWorkspacePointListItem>();
+        DrawMapWorkspaceChart([]);
+
+        var snapshot = await CreateSelectedMapSnapshotAsync();
+        if (snapshot is null)
+        {
+            return;
+        }
+
+        if (MapWorkspaceEditOperationSelector.SelectedItem is not MapEditOperationOption operation)
+        {
+            MapWorkspaceStatusText.Text = _localizer.Text("MapWorkspace.NoEditOperation");
+            return;
+        }
+
+        if (!decimal.TryParse(MapWorkspaceEditValueTextBox.Text.Trim(), out var editValue))
+        {
+            MapWorkspaceStatusText.Text = _localizer.Text("MapWorkspace.InvalidEditValue");
+            return;
+        }
+
+        if (!decimal.TryParse(MapWorkspaceMinAllowedTextBox.Text.Trim(), out var minAllowed))
+        {
+            MapWorkspaceStatusText.Text = _localizer.Text("MapWorkspace.InvalidMinAllowed");
+            return;
+        }
+
+        if (!decimal.TryParse(MapWorkspaceMaxAllowedTextBox.Text.Trim(), out var maxAllowed))
+        {
+            MapWorkspaceStatusText.Text = _localizer.Text("MapWorkspace.InvalidMaxAllowed");
+            return;
+        }
+
+        var result = _ecuProjectMapEditPreviewService.Preview(new EcuProjectMapEditPreviewRequest(
+            snapshot,
+            StartRow: 0,
+            StartColumn: 0,
+            RowCount: snapshot.RowCount,
+            ColumnCount: snapshot.ColumnCount,
+            operation.Operation,
+            editValue,
+            minAllowed,
+            maxAllowed));
+
+        MapWorkspaceGrid.ItemsSource = result.Cells
+            .Select(cell => new MapWorkspacePointListItem(
+                $"0x{cell.Offset:X8}",
+                $"{cell.CurrentValue:0.######}",
+                $"{cell.ProposedValue:0.######}",
+                $"{cell.Delta:0.######}",
+                ToChartByte(cell.ProposedValue),
+                string.Empty))
+            .ToArray();
+
+        DrawMapWorkspaceEditPreviewChart(result.Cells);
+        MapWorkspaceStatusText.Text = result.IsAllowed
+            ? string.Join(Environment.NewLine, result.Messages)
+            : string.Join(Environment.NewLine, result.BlockReasons);
+        MapWorkspaceEditGateText.Text = string.Join(Environment.NewLine, result.BlockReasons);
+    }
+
     private async Task<EcuProjectMapDefinitionCreateRequest?> TryBuildMapDefinitionRequestAsync()
     {
         var project = await EnsureMapWorkspaceProjectAsync();
@@ -1246,6 +1322,39 @@ public partial class MainWindow : Window
             "manual-ui-project",
             "Unknown",
             "Manual UI candidate. Not verified for calibration export.");
+    }
+
+    private async Task<EcuProjectMapSnapshotResult?> CreateSelectedMapSnapshotAsync()
+    {
+        var project = await EnsureMapWorkspaceProjectAsync();
+        if (project is null)
+        {
+            return null;
+        }
+
+        if (MapWorkspaceFileSelector.SelectedItem is not EcuFileSelectionItem selectedFile)
+        {
+            MapWorkspaceStatusText.Text = _localizer.Text("MapWorkspace.NoFile");
+            return null;
+        }
+
+        var file = await _ecuFileService.GetByIdAsync(selectedFile.Id);
+        if (file is null)
+        {
+            MapWorkspaceStatusText.Text = _localizer.Text("MapWorkspace.NoFile");
+            return null;
+        }
+
+        var mapId = MapWorkspaceMapIdTextBox.Text.Trim();
+        var snapshot = await _ecuProjectMapSnapshotService.CreateSnapshotAsync(
+            new EcuProjectMapSnapshotRequest(project.Id, mapId, file.FilePath));
+        if (!snapshot.IsSuccess)
+        {
+            MapWorkspaceStatusText.Text = string.Join(Environment.NewLine, snapshot.BlockReasons);
+            return null;
+        }
+
+        return snapshot;
     }
 
     private async Task LoadMapWorkspaceDefinitionsForSelectedFileAsync()
@@ -1503,6 +1612,57 @@ public partial class MainWindow : Window
         {
             var x = cells.Count == 1 ? width / 2 : index * width / (cells.Count - 1);
             var normalized = (double)((cells[index].ConvertedValue - min) / range);
+            var y = height - normalized * height;
+            polyline.Points.Add(new Point(x, y));
+        }
+
+        MapWorkspaceChartCanvas.Children.Add(polyline);
+    }
+
+    private void DrawMapWorkspaceEditPreviewChart(IReadOnlyList<EcuProjectMapEditPreviewCell> cells)
+    {
+        MapWorkspaceChartCanvas.Children.Clear();
+        if (cells.Count == 0)
+        {
+            return;
+        }
+
+        var width = Math.Max(1, MapWorkspaceChartCanvas.ActualWidth);
+        if (width < 10)
+        {
+            width = 640;
+        }
+
+        var height = Math.Max(1, MapWorkspaceChartCanvas.Height);
+        AddEditPreviewPolyline(cells, cell => cell.CurrentValue, Color.FromRgb(42, 111, 151), width, height);
+        AddEditPreviewPolyline(cells, cell => cell.ProposedValue, Color.FromRgb(188, 71, 73), width, height);
+    }
+
+    private void AddEditPreviewPolyline(
+        IReadOnlyList<EcuProjectMapEditPreviewCell> cells,
+        Func<EcuProjectMapEditPreviewCell, decimal> selector,
+        Color color,
+        double width,
+        double height)
+    {
+        var min = cells.Min(selector);
+        var max = cells.Max(selector);
+        var range = max - min;
+        if (range <= 0)
+        {
+            range = 1;
+        }
+
+        var polyline = new Polyline
+        {
+            Stroke = new SolidColorBrush(color),
+            StrokeThickness = 2
+        };
+
+        for (var index = 0; index < cells.Count; index++)
+        {
+            var x = cells.Count == 1 ? width / 2 : index * width / (cells.Count - 1);
+            var normalized = (double)((selector(cells[index]) - min) / range);
             var y = height - normalized * height;
             polyline.Points.Add(new Point(x, y));
         }
@@ -1888,6 +2048,15 @@ public partial class MainWindow : Window
             .Select(profile => new CalibrationProfileOption(profile.Key, profile.DisplayName))
             .ToArray();
 
+    private IReadOnlyList<MapEditOperationOption> BuildMapEditOperationOptions() =>
+    [
+        new(_localizer.Text("MapWorkspace.EditOperation.Percentage"), EcuProjectMapEditOperation.ApplyPercentage),
+        new(_localizer.Text("MapWorkspace.EditOperation.Increment"), EcuProjectMapEditOperation.IncrementAbsolute),
+        new(_localizer.Text("MapWorkspace.EditOperation.Decrement"), EcuProjectMapEditOperation.DecrementAbsolute),
+        new(_localizer.Text("MapWorkspace.EditOperation.Multiplier"), EcuProjectMapEditOperation.ApplyMultiplier),
+        new(_localizer.Text("MapWorkspace.EditOperation.Set"), EcuProjectMapEditOperation.SetAbsolute)
+    ];
+
     private void RefreshVehicleProfileOptions()
     {
         var selectedProfileId = (VehicleProfileSelector.SelectedItem as VehicleProfileOption)?.Profile?.Id;
@@ -1982,6 +2151,8 @@ public sealed record MapDefinitionSelectionItem(
     int? RowCount,
     int? ColumnCount,
     string DataType);
+
+public sealed record MapEditOperationOption(string DisplayName, EcuProjectMapEditOperation Operation);
 
 public sealed record EcuSelectionItem(Guid Id, string DisplayName);
 
